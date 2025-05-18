@@ -1,0 +1,88 @@
+model Feedback {
+  feedbackType                                   FeedbackType
+  isManagerOnly                                  Boolean                       @default(false)
+  dateSubmitted                                  DateTime                      @default(now())
+  performanceContext                             PerformanceContext?
+  createdAt                                      DateTime                      @default(now())
+  updatedAt                                      DateTime
+  id                                             Int                           @id @default(autoincrement())
+  giverEmployeeId                                Int
+  receiverEmployeeId                             Int
+  performanceCycleId                             Int?
+  feedbackRequestId                              Int?                          @unique
+  createdById                                    Int?
+  updatedById                                    Int?
+  Employee_Feedback_createdByIdToEmployee        Employee?                     @relation("Feedback_createdByIdToEmployee", fields: [createdById], references: [id])
+  FeedbackRequest                                FeedbackRequest?              @relation(fields: [feedbackRequestId], references: [id])
+  Employee_Feedback_giverEmployeeIdToEmployee    Employee                      @relation("Feedback_giverEmployeeIdToEmployee", fields: [giverEmployeeId], references: [id], onDelete: Cascade)
+  PerformanceCycle                               PerformanceCycle?             @relation(fields: [performanceCycleId], references: [id])
+  Employee_Feedback_receiverEmployeeIdToEmployee Employee                      @relation("Feedback_receiverEmployeeIdToEmployee", fields: [receiverEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Feedback_updatedByIdToEmployee        Employee?                     @relation("Feedback_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  FeedbackGeneralQA                              FeedbackGeneralQA[]
+  FeedbackRating                                 FeedbackRating[]
+  PerformanceFeedbackResponse                    PerformanceFeedbackResponse[]
+
+  @@index([createdById])
+  @@index([feedbackType])
+  @@index([giverEmployeeId])
+  @@index([isManagerOnly])
+  @@index([performanceCycleId])
+  @@index([receiverEmployeeId])
+  @@index([updatedById])
+}
+
+model FeedbackGeneralQA {
+  question   String
+  answer     String
+  createdAt  DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  feedbackId Int
+  Feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+}
+
+model FeedbackRating {
+  ratingValue      Int
+  createdAt        DateTime       @default(now())
+  id               Int            @id @default(autoincrement())
+  feedbackId       Int
+  ratingCategoryId Int
+  Feedback         Feedback       @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  RatingCategory   RatingCategory @relation(fields: [ratingCategoryId], references: [id])
+
+  @@unique([feedbackId, ratingCategoryId])
+  @@index([feedbackId])
+  @@index([ratingCategoryId])
+}
+
+model FeedbackRequest {
+  requestedFeedbackType                                      FeedbackType
+  status                                                     FeedbackRequestStatus @default(Pending)
+  dateRequested                                              DateTime              @default(now())
+  performanceContext                                         PerformanceContext?
+  message                                                    String?
+  dueDate                                                    DateTime?
+  createdAt                                                  DateTime              @default(now())
+  updatedAt                                                  DateTime
+  id                                                         Int                   @id @default(autoincrement())
+  requesterEmployeeId                                        Int
+  requestedFromEmployeeId                                    Int
+  requestedForEmployeeId                                     Int
+  createdById                                                Int?
+  updatedById                                                Int?
+  Feedback                                                   Feedback?
+  Employee_FeedbackRequest_createdByIdToEmployee             Employee?             @relation("FeedbackRequest_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_FeedbackRequest_requestedForEmployeeIdToEmployee  Employee              @relation("FeedbackRequest_requestedForEmployeeIdToEmployee", fields: [requestedForEmployeeId], references: [id], onDelete: Cascade)
+  Employee_FeedbackRequest_requestedFromEmployeeIdToEmployee Employee              @relation("FeedbackRequest_requestedFromEmployeeIdToEmployee", fields: [requestedFromEmployeeId], references: [id], onDelete: Cascade)
+  Employee_FeedbackRequest_requesterEmployeeIdToEmployee     Employee              @relation("FeedbackRequest_requesterEmployeeIdToEmployee", fields: [requesterEmployeeId], references: [id], onDelete: Cascade)
+  Employee_FeedbackRequest_updatedByIdToEmployee             Employee?             @relation("FeedbackRequest_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([dueDate])
+  @@index([requestedForEmployeeId])
+  @@index([requestedFromEmployeeId])
+  @@index([requesterEmployeeId])
+  @@index([status])
+  @@index([updatedById])
+}

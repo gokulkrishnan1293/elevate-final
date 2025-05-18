@@ -1,0 +1,17 @@
+model Organization {
+  name                                        String             @unique
+  createdAt                                   DateTime           @default(now())
+  updatedAt                                   DateTime           @updatedAt
+  id                                          Int                @id @default(autoincrement())
+  createdById                                 Int?
+  updatedById                                 Int?
+  ART                                         ART[]
+  EmployeeOrgLink                             EmployeeOrgLink[]
+  Event                                       Event[]
+  Employee_Organization_createdByIdToEmployee Employee?          @relation("Organization_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Organization_updatedByIdToEmployee Employee?          @relation("Organization_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  PerformanceCycle                            PerformanceCycle[]
+
+  @@index([createdById])
+  @@index([updatedById])
+}

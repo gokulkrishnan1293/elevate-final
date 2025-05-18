@@ -1,0 +1,36 @@
+enum EventScopeLevel {
+  Organization
+  ART
+  Team
+}
+
+enum EventStatus {
+  Planning
+  NominationsOpen
+  VotingOpen
+  Judging
+  Completed
+  Cancelled
+}
+
+enum FeedbackRequestStatus {
+  Pending
+  Completed
+  Declined
+}
+
+enum FeedbackType {
+  General
+  Performance
+}
+
+enum PerformanceContext {
+  Sprint
+  PI
+  Overall
+}
+
+enum TeamFeedbackStatus {
+  Draft
+  Submitted
+}

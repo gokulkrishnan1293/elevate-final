@@ -1,0 +1,698 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model ART {
+  name                               String
+  createdAt                          DateTime          @default(now())
+  updatedAt                          DateTime          @updatedAt
+  id                                 Int               @id @default(autoincrement())
+  organizationId                     Int
+  createdById                        Int?
+  updatedById                        Int?
+  Employee_ART_createdByIdToEmployee Employee?         @relation("ART_createdByIdToEmployee", fields: [createdById], references: [id])
+  Organization                       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Employee_ART_updatedByIdToEmployee Employee?         @relation("ART_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  EmployeeARTLink                    EmployeeARTLink[]
+  Event                              Event[]
+  Team                               Team[]
+
+  @@unique([name, organizationId])
+  @@index([createdById])
+  @@index([organizationId])
+  @@index([updatedById])
+}
+
+model Award {
+  awardDate                                    DateTime
+  justification                                String?
+  awardValue                                   String?
+  createdAt                                    DateTime      @default(now())
+  updatedAt                                    DateTime
+  id                                           Int           @id @default(autoincrement())
+  recipientEmployeeId                          Int
+  awardCategoryId                              Int
+  winningNominationId                          Int?          @unique
+  nominatorEmployeeId                          Int?
+  createdById                                  Int?
+  updatedById                                  Int?
+  AwardCategory                                AwardCategory @relation(fields: [awardCategoryId], references: [id], onDelete: Cascade)
+  Employee_Award_createdByIdToEmployee         Employee?     @relation("Award_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Award_nominatorEmployeeIdToEmployee Employee?     @relation("Award_nominatorEmployeeIdToEmployee", fields: [nominatorEmployeeId], references: [id])
+  Employee_Award_recipientEmployeeIdToEmployee Employee      @relation("Award_recipientEmployeeIdToEmployee", fields: [recipientEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Award_updatedByIdToEmployee         Employee?     @relation("Award_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Nomination                                   Nomination?   @relation(fields: [winningNominationId], references: [id])
+
+  @@index([awardCategoryId])
+  @@index([createdById])
+  @@index([nominatorEmployeeId])
+  @@index([recipientEmployeeId])
+  @@index([updatedById])
+}
+
+model AwardCategory {
+  description                                  String?
+  createdAt                                    DateTime                   @default(now())
+  updatedAt                                    DateTime
+  id                                           Int                        @id @default(autoincrement())
+  eventId                                      Int
+  categoryNameId                               Int
+  createdById                                  Int?
+  updatedById                                  Int?
+  Award                                        Award[]
+  ReferenceAwardCategoryName                   ReferenceAwardCategoryName @relation(fields: [categoryNameId], references: [id])
+  Employee_AwardCategory_createdByIdToEmployee Employee?                  @relation("AwardCategory_createdByIdToEmployee", fields: [createdById], references: [id])
+  Event                                        Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Employee_AwardCategory_updatedByIdToEmployee Employee?                  @relation("AwardCategory_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Nomination                                   Nomination[]
+
+  @@unique([eventId, categoryNameId])
+  @@index([categoryNameId])
+  @@index([createdById])
+  @@index([eventId])
+  @@index([updatedById])
+}
+
+model Employee {
+  name                                                                                  String
+  email                                                                                 String                        @unique
+  lanId                                                                                 String                        @unique
+  isContractor                                                                          Boolean                       @default(true)
+  createdAt                                                                             DateTime                      @default(now())
+  updatedAt                                                                             DateTime
+  id                                                                                    Int                           @id @default(autoincrement())
+  cignaManagerId                                                                        Int?
+  updatedById                                                                           Int?
+  isUserActive                                                                          Boolean                       @default(true)
+  ART_ART_createdByIdToEmployee                                                         ART[]                         @relation("ART_createdByIdToEmployee")
+  ART_ART_updatedByIdToEmployee                                                         ART[]                         @relation("ART_updatedByIdToEmployee")
+  Award_Award_createdByIdToEmployee                                                     Award[]                       @relation("Award_createdByIdToEmployee")
+  Award_Award_nominatorEmployeeIdToEmployee                                             Award[]                       @relation("Award_nominatorEmployeeIdToEmployee")
+  Award_Award_recipientEmployeeIdToEmployee                                             Award[]                       @relation("Award_recipientEmployeeIdToEmployee")
+  Award_Award_updatedByIdToEmployee                                                     Award[]                       @relation("Award_updatedByIdToEmployee")
+  AwardCategory_AwardCategory_createdByIdToEmployee                                     AwardCategory[]               @relation("AwardCategory_createdByIdToEmployee")
+  AwardCategory_AwardCategory_updatedByIdToEmployee                                     AwardCategory[]               @relation("AwardCategory_updatedByIdToEmployee")
+  Employee_Employee_cignaManagerIdToEmployee                                            Employee?                     @relation("Employee_cignaManagerIdToEmployee", fields: [cignaManagerId], references: [id])
+  other_Employee_Employee_cignaManagerIdToEmployee                                      Employee[]                    @relation("Employee_cignaManagerIdToEmployee")
+  Employee_Employee_updatedByIdToEmployee                                               Employee?                     @relation("Employee_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  other_Employee_Employee_updatedByIdToEmployee                                         Employee[]                    @relation("Employee_updatedByIdToEmployee")
+  EmployeeARTLink                                                                       EmployeeARTLink[]
+  EmployeeAchievement_EmployeeAchievement_createdByIdToEmployee                         EmployeeAchievement[]         @relation("EmployeeAchievement_createdByIdToEmployee")
+  EmployeeAchievement_EmployeeAchievement_employeeIdToEmployee                          EmployeeAchievement[]         @relation("EmployeeAchievement_employeeIdToEmployee")
+  EmployeeAchievement_EmployeeAchievement_updatedByIdToEmployee                         EmployeeAchievement[]         @relation("EmployeeAchievement_updatedByIdToEmployee")
+  EmployeeOrgLink                                                                       EmployeeOrgLink[]
+  EmployeeTeamLink                                                                      EmployeeTeamLink[]
+  Event_Event_createdByIdToEmployee                                                     Event[]                       @relation("Event_createdByIdToEmployee")
+  Event_Event_eventOwnerIdToEmployee                                                    Event[]                       @relation("Event_eventOwnerIdToEmployee")
+  Event_Event_updatedByIdToEmployee                                                     Event[]                       @relation("Event_updatedByIdToEmployee")
+  EventJudge                                                                            EventJudge[]
+  Feedback_Feedback_createdByIdToEmployee                                               Feedback[]                    @relation("Feedback_createdByIdToEmployee")
+  Feedback_Feedback_giverEmployeeIdToEmployee                                           Feedback[]                    @relation("Feedback_giverEmployeeIdToEmployee")
+  Feedback_Feedback_receiverEmployeeIdToEmployee                                        Feedback[]                    @relation("Feedback_receiverEmployeeIdToEmployee")
+  Feedback_Feedback_updatedByIdToEmployee                                               Feedback[]                    @relation("Feedback_updatedByIdToEmployee")
+  FeedbackRequest_FeedbackRequest_createdByIdToEmployee                                 FeedbackRequest[]             @relation("FeedbackRequest_createdByIdToEmployee")
+  FeedbackRequest_FeedbackRequest_requestedForEmployeeIdToEmployee                      FeedbackRequest[]             @relation("FeedbackRequest_requestedForEmployeeIdToEmployee")
+  FeedbackRequest_FeedbackRequest_requestedFromEmployeeIdToEmployee                     FeedbackRequest[]             @relation("FeedbackRequest_requestedFromEmployeeIdToEmployee")
+  FeedbackRequest_FeedbackRequest_requesterEmployeeIdToEmployee                         FeedbackRequest[]             @relation("FeedbackRequest_requesterEmployeeIdToEmployee")
+  FeedbackRequest_FeedbackRequest_updatedByIdToEmployee                                 FeedbackRequest[]             @relation("FeedbackRequest_updatedByIdToEmployee")
+  Nomination_Nomination_createdByIdToEmployee                                           Nomination[]                  @relation("Nomination_createdByIdToEmployee")
+  Nomination_Nomination_nominatorEmployeeIdToEmployee                                   Nomination[]                  @relation("Nomination_nominatorEmployeeIdToEmployee")
+  Nomination_Nomination_nomineeEmployeeIdToEmployee                                     Nomination[]                  @relation("Nomination_nomineeEmployeeIdToEmployee")
+  Nomination_Nomination_updatedByIdToEmployee                                           Nomination[]                  @relation("Nomination_updatedByIdToEmployee")
+  Organization_Organization_createdByIdToEmployee                                       Organization[]                @relation("Organization_createdByIdToEmployee")
+  Organization_Organization_updatedByIdToEmployee                                       Organization[]                @relation("Organization_updatedByIdToEmployee")
+  PerformanceCycle_PerformanceCycle_createdByIdToEmployee                               PerformanceCycle[]            @relation("PerformanceCycle_createdByIdToEmployee")
+  PerformanceCycle_PerformanceCycle_updatedByIdToEmployee                               PerformanceCycle[]            @relation("PerformanceCycle_updatedByIdToEmployee")
+  PerformanceFeedbackResponse_PerformanceFeedbackResponse_employeeResponderIdToEmployee PerformanceFeedbackResponse[] @relation("PerformanceFeedbackResponse_employeeResponderIdToEmployee")
+  PerformanceFeedbackResponse_PerformanceFeedbackResponse_managerResponderIdToEmployee  PerformanceFeedbackResponse[] @relation("PerformanceFeedbackResponse_managerResponderIdToEmployee")
+  PerformanceQuestion_PerformanceQuestion_createdByIdToEmployee                         PerformanceQuestion[]         @relation("PerformanceQuestion_createdByIdToEmployee")
+  PerformanceQuestion_PerformanceQuestion_updatedByIdToEmployee                         PerformanceQuestion[]         @relation("PerformanceQuestion_updatedByIdToEmployee")
+  RatingCategory_RatingCategory_createdByIdToEmployee                                   RatingCategory[]              @relation("RatingCategory_createdByIdToEmployee")
+  RatingCategory_RatingCategory_updatedByIdToEmployee                                   RatingCategory[]              @relation("RatingCategory_updatedByIdToEmployee")
+  ReferenceAwardCategoryName_ReferenceAwardCategoryName_createdByIdToEmployee           ReferenceAwardCategoryName[]  @relation("ReferenceAwardCategoryName_createdByIdToEmployee")
+  ReferenceAwardCategoryName_ReferenceAwardCategoryName_updatedByIdToEmployee           ReferenceAwardCategoryName[]  @relation("ReferenceAwardCategoryName_updatedByIdToEmployee")
+  ReferenceEventType_ReferenceEventType_createdByIdToEmployee                           ReferenceEventType[]          @relation("ReferenceEventType_createdByIdToEmployee")
+  ReferenceEventType_ReferenceEventType_updatedByIdToEmployee                           ReferenceEventType[]          @relation("ReferenceEventType_updatedByIdToEmployee")
+  Team_Team_createdByIdToEmployee                                                       Team[]                        @relation("Team_createdByIdToEmployee")
+  Team_Team_updatedByIdToEmployee                                                       Team[]                        @relation("Team_updatedByIdToEmployee")
+  TeamPerformanceFeedback_TeamPerformanceFeedback_createdByIdToEmployee                 TeamPerformanceFeedback[]     @relation("TeamPerformanceFeedback_createdByIdToEmployee")
+  TeamPerformanceFeedback_TeamPerformanceFeedback_giverEmployeeIdToEmployee             TeamPerformanceFeedback[]     @relation("TeamPerformanceFeedback_giverEmployeeIdToEmployee")
+  TeamPerformanceFeedback_TeamPerformanceFeedback_updatedByIdToEmployee                 TeamPerformanceFeedback[]     @relation("TeamPerformanceFeedback_updatedByIdToEmployee")
+  TeamPerformanceQuestion_TeamPerformanceQuestion_createdByIdToEmployee                 TeamPerformanceQuestion[]     @relation("TeamPerformanceQuestion_createdByIdToEmployee")
+  TeamPerformanceQuestion_TeamPerformanceQuestion_updatedByIdToEmployee                 TeamPerformanceQuestion[]     @relation("TeamPerformanceQuestion_updatedByIdToEmployee")
+  TeamRatingCategory_TeamRatingCategory_createdByIdToEmployee                           TeamRatingCategory[]          @relation("TeamRatingCategory_createdByIdToEmployee")
+  TeamRatingCategory_TeamRatingCategory_updatedByIdToEmployee                           TeamRatingCategory[]          @relation("TeamRatingCategory_updatedByIdToEmployee")
+  Vote_Vote_createdByIdToEmployee                                                       Vote[]                        @relation("Vote_createdByIdToEmployee")
+  Vote_Vote_updatedByIdToEmployee                                                       Vote[]                        @relation("Vote_updatedByIdToEmployee")
+  Vote_Vote_voterEmployeeIdToEmployee                                                   Vote[]                        @relation("Vote_voterEmployeeIdToEmployee")
+
+  @@index([cignaManagerId])
+  @@index([email])
+  @@index([lanId])
+  @@index([updatedById])
+}
+
+model EmployeeARTLink {
+  role       String
+  createdAt  DateTime @default(now())
+  employeeId Int
+  artId      Int
+  ART        ART      @relation(fields: [artId], references: [id], onDelete: Cascade)
+  Employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, artId, role])
+  @@index([artId])
+  @@index([employeeId])
+}
+
+model EmployeeAchievement {
+  description                                        String
+  achievementDate                                    DateTime
+  dateLogged                                         DateTime  @default(now())
+  category                                           String?
+  createdAt                                          DateTime  @default(now())
+  updatedAt                                          DateTime
+  id                                                 Int       @id @default(autoincrement())
+  employeeId                                         Int
+  createdById                                        Int?
+  updatedById                                        Int?
+  Employee_EmployeeAchievement_createdByIdToEmployee Employee? @relation("EmployeeAchievement_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_EmployeeAchievement_employeeIdToEmployee  Employee  @relation("EmployeeAchievement_employeeIdToEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  Employee_EmployeeAchievement_updatedByIdToEmployee Employee? @relation("EmployeeAchievement_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([achievementDate])
+  @@index([createdById])
+  @@index([employeeId])
+  @@index([updatedById])
+}
+
+model EmployeeOrgLink {
+  role           String
+  createdAt      DateTime     @default(now())
+  employeeId     Int
+  organizationId Int
+  Employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "EmployeeOrgLink_orgAdminLink_fkey")
+
+  @@id([employeeId, organizationId, role])
+  @@index([employeeId])
+  @@index([organizationId])
+}
+
+model EmployeeTeamLink {
+  jobTitle    String
+  isTeamOwner Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  employeeId  Int
+  teamId      Int
+  Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, teamId])
+  @@index([employeeId])
+  @@index([teamId])
+}
+
+model Event {
+  name                                  String
+  description                           String?
+  startDate                             DateTime?
+  endDate                               DateTime?
+  nominationEndDate                     DateTime?
+  status                                EventStatus        @default(Planning)
+  scopeLevel                            EventScopeLevel
+  isVotingAnonymous                     Boolean            @default(false)
+  isNominationAnonymous                 Boolean            @default(false)
+  createdAt                             DateTime           @default(now())
+  updatedAt                             DateTime
+  id                                    Int                @id @default(autoincrement())
+  eventTypeId                           Int
+  eventOwnerId                          Int
+  scopeOrganizationId                   Int?
+  scopeArtId                            Int?
+  scopeTeamId                           Int?
+  createdById                           Int?
+  updatedById                           Int?
+  AwardCategory                         AwardCategory[]
+  Employee_Event_createdByIdToEmployee  Employee?          @relation("Event_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Event_eventOwnerIdToEmployee Employee           @relation("Event_eventOwnerIdToEmployee", fields: [eventOwnerId], references: [id])
+  ReferenceEventType                    ReferenceEventType @relation(fields: [eventTypeId], references: [id])
+  ART                                   ART?               @relation(fields: [scopeArtId], references: [id], onDelete: Cascade)
+  Organization                          Organization?      @relation(fields: [scopeOrganizationId], references: [id], onDelete: Cascade)
+  Team                                  Team?              @relation(fields: [scopeTeamId], references: [id], onDelete: Cascade)
+  Employee_Event_updatedByIdToEmployee  Employee?          @relation("Event_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  EventJudge                            EventJudge[]
+
+  @@index([createdById])
+  @@index([eventOwnerId])
+  @@index([eventTypeId])
+  @@index([scopeArtId])
+  @@index([scopeLevel])
+  @@index([scopeOrganizationId])
+  @@index([scopeTeamId])
+  @@index([status])
+  @@index([updatedById])
+}
+
+model EventJudge {
+  createdAt       DateTime @default(now())
+  eventId         Int
+  judgeEmployeeId Int
+  Event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Employee        Employee @relation(fields: [judgeEmployeeId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, judgeEmployeeId])
+  @@index([eventId])
+  @@index([judgeEmployeeId])
+}
+
+model Feedback {
+  feedbackType                                   FeedbackType
+  isManagerOnly                                  Boolean                       @default(false)
+  dateSubmitted                                  DateTime                      @default(now())
+  performanceContext                             PerformanceContext?
+  createdAt                                      DateTime                      @default(now())
+  updatedAt                                      DateTime
+  id                                             Int                           @id @default(autoincrement())
+  giverEmployeeId                                Int
+  receiverEmployeeId                             Int
+  performanceCycleId                             Int?
+  feedbackRequestId                              Int?                          @unique
+  createdById                                    Int?
+  updatedById                                    Int?
+  Employee_Feedback_createdByIdToEmployee        Employee?                     @relation("Feedback_createdByIdToEmployee", fields: [createdById], references: [id])
+  FeedbackRequest                                FeedbackRequest?              @relation(fields: [feedbackRequestId], references: [id])
+  Employee_Feedback_giverEmployeeIdToEmployee    Employee                      @relation("Feedback_giverEmployeeIdToEmployee", fields: [giverEmployeeId], references: [id], onDelete: Cascade)
+  PerformanceCycle                               PerformanceCycle?             @relation(fields: [performanceCycleId], references: [id])
+  Employee_Feedback_receiverEmployeeIdToEmployee Employee                      @relation("Feedback_receiverEmployeeIdToEmployee", fields: [receiverEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Feedback_updatedByIdToEmployee        Employee?                     @relation("Feedback_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  FeedbackGeneralQA                              FeedbackGeneralQA[]
+  FeedbackRating                                 FeedbackRating[]
+  PerformanceFeedbackResponse                    PerformanceFeedbackResponse[]
+
+  @@index([createdById])
+  @@index([feedbackType])
+  @@index([giverEmployeeId])
+  @@index([isManagerOnly])
+  @@index([performanceCycleId])
+  @@index([receiverEmployeeId])
+  @@index([updatedById])
+}
+
+model FeedbackGeneralQA {
+  question   String
+  answer     String
+  createdAt  DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  feedbackId Int
+  Feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+}
+
+model FeedbackRating {
+  ratingValue      Int
+  createdAt        DateTime       @default(now())
+  id               Int            @id @default(autoincrement())
+  feedbackId       Int
+  ratingCategoryId Int
+  Feedback         Feedback       @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  RatingCategory   RatingCategory @relation(fields: [ratingCategoryId], references: [id])
+
+  @@unique([feedbackId, ratingCategoryId])
+  @@index([feedbackId])
+  @@index([ratingCategoryId])
+}
+
+model FeedbackRequest {
+  requestedFeedbackType                                      FeedbackType
+  status                                                     FeedbackRequestStatus @default(Pending)
+  dateRequested                                              DateTime              @default(now())
+  performanceContext                                         PerformanceContext?
+  message                                                    String?
+  dueDate                                                    DateTime?
+  createdAt                                                  DateTime              @default(now())
+  updatedAt                                                  DateTime
+  id                                                         Int                   @id @default(autoincrement())
+  requesterEmployeeId                                        Int
+  requestedFromEmployeeId                                    Int
+  requestedForEmployeeId                                     Int
+  createdById                                                Int?
+  updatedById                                                Int?
+  Feedback                                                   Feedback?
+  Employee_FeedbackRequest_createdByIdToEmployee             Employee?             @relation("FeedbackRequest_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_FeedbackRequest_requestedForEmployeeIdToEmployee  Employee              @relation("FeedbackRequest_requestedForEmployeeIdToEmployee", fields: [requestedForEmployeeId], references: [id], onDelete: Cascade)
+  Employee_FeedbackRequest_requestedFromEmployeeIdToEmployee Employee              @relation("FeedbackRequest_requestedFromEmployeeIdToEmployee", fields: [requestedFromEmployeeId], references: [id], onDelete: Cascade)
+  Employee_FeedbackRequest_requesterEmployeeIdToEmployee     Employee              @relation("FeedbackRequest_requesterEmployeeIdToEmployee", fields: [requesterEmployeeId], references: [id], onDelete: Cascade)
+  Employee_FeedbackRequest_updatedByIdToEmployee             Employee?             @relation("FeedbackRequest_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([dueDate])
+  @@index([requestedForEmployeeId])
+  @@index([requestedFromEmployeeId])
+  @@index([requesterEmployeeId])
+  @@index([status])
+  @@index([updatedById])
+}
+
+model Nomination {
+  nominationDate                                    DateTime      @default(now())
+  justification                                     String
+  createdAt                                         DateTime      @default(now())
+  updatedAt                                         DateTime
+  id                                                Int           @id @default(autoincrement())
+  awardCategoryId                                   Int
+  nomineeEmployeeId                                 Int
+  nominatorEmployeeId                               Int
+  createdById                                       Int?
+  updatedById                                       Int?
+  Award                                             Award?
+  AwardCategory                                     AwardCategory @relation(fields: [awardCategoryId], references: [id], onDelete: Cascade)
+  Employee_Nomination_createdByIdToEmployee         Employee?     @relation("Nomination_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Nomination_nominatorEmployeeIdToEmployee Employee      @relation("Nomination_nominatorEmployeeIdToEmployee", fields: [nominatorEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Nomination_nomineeEmployeeIdToEmployee   Employee      @relation("Nomination_nomineeEmployeeIdToEmployee", fields: [nomineeEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Nomination_updatedByIdToEmployee         Employee?     @relation("Nomination_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Vote                                              Vote[]
+
+  @@index([awardCategoryId])
+  @@index([createdById])
+  @@index([nominatorEmployeeId])
+  @@index([nomineeEmployeeId])
+  @@index([updatedById])
+}
+
+model Organization {
+  name                                        String             @unique
+  createdAt                                   DateTime           @default(now())
+  updatedAt                                   DateTime           @updatedAt
+  id                                          Int                @id @default(autoincrement())
+  createdById                                 Int?
+  updatedById                                 Int?
+  ART                                         ART[]
+  EmployeeOrgLink                             EmployeeOrgLink[]
+  Event                                       Event[]
+  Employee_Organization_createdByIdToEmployee Employee?          @relation("Organization_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Organization_updatedByIdToEmployee Employee?          @relation("Organization_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  PerformanceCycle                            PerformanceCycle[]
+
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model PerformanceCycle {
+  name                                            String
+  startDate                                       DateTime
+  endDate                                         DateTime
+  isActive                                        Boolean                   @default(true)
+  createdAt                                       DateTime                  @default(now())
+  updatedAt                                       DateTime
+  id                                              Int                       @id @default(autoincrement())
+  organizationId                                  Int
+  createdById                                     Int?
+  updatedById                                     Int?
+  Feedback                                        Feedback[]
+  Employee_PerformanceCycle_createdByIdToEmployee Employee?                 @relation("PerformanceCycle_createdByIdToEmployee", fields: [createdById], references: [id])
+  Organization                                    Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Employee_PerformanceCycle_updatedByIdToEmployee Employee?                 @relation("PerformanceCycle_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  TeamPerformanceFeedback                         TeamPerformanceFeedback[]
+
+  @@unique([name, organizationId])
+  @@index([createdById])
+  @@index([isActive])
+  @@index([organizationId])
+  @@index([updatedById])
+}
+
+model PerformanceFeedbackResponse {
+  employeeResponse                                                   String?
+  managerResponse                                                    String?
+  createdAt                                                          DateTime            @default(now())
+  updatedAt                                                          DateTime
+  id                                                                 Int                 @id @default(autoincrement())
+  feedbackId                                                         Int
+  questionId                                                         Int
+  employeeResponderId                                                Int?
+  managerResponderId                                                 Int?
+  Employee_PerformanceFeedbackResponse_employeeResponderIdToEmployee Employee?           @relation("PerformanceFeedbackResponse_employeeResponderIdToEmployee", fields: [employeeResponderId], references: [id])
+  Feedback                                                           Feedback            @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  Employee_PerformanceFeedbackResponse_managerResponderIdToEmployee  Employee?           @relation("PerformanceFeedbackResponse_managerResponderIdToEmployee", fields: [managerResponderId], references: [id])
+  PerformanceQuestion                                                PerformanceQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([feedbackId, questionId])
+  @@index([employeeResponderId])
+  @@index([feedbackId])
+  @@index([managerResponderId])
+  @@index([questionId])
+}
+
+model PerformanceQuestion {
+  questionText                                       String
+  category                                           String?
+  isActive                                           Boolean                       @default(true)
+  createdAt                                          DateTime                      @default(now())
+  updatedAt                                          DateTime
+  id                                                 Int                           @id @default(autoincrement())
+  createdById                                        Int?
+  updatedById                                        Int?
+  PerformanceFeedbackResponse                        PerformanceFeedbackResponse[]
+  Employee_PerformanceQuestion_createdByIdToEmployee Employee?                     @relation("PerformanceQuestion_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_PerformanceQuestion_updatedByIdToEmployee Employee?                     @relation("PerformanceQuestion_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model RatingCategory {
+  name                                          String           @unique
+  description                                   String?
+  isActive                                      Boolean          @default(true)
+  createdAt                                     DateTime         @default(now())
+  updatedAt                                     DateTime
+  id                                            Int              @id @default(autoincrement())
+  createdById                                   Int?
+  updatedById                                   Int?
+  FeedbackRating                                FeedbackRating[]
+  Employee_RatingCategory_createdByIdToEmployee Employee?        @relation("RatingCategory_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_RatingCategory_updatedByIdToEmployee Employee?        @relation("RatingCategory_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model ReferenceAwardCategoryName {
+  name                                                      String          @unique
+  description                                               String?
+  isActive                                                  Boolean         @default(true)
+  createdAt                                                 DateTime        @default(now())
+  updatedAt                                                 DateTime
+  id                                                        Int             @id @default(autoincrement())
+  createdById                                               Int?
+  updatedById                                               Int?
+  AwardCategory                                             AwardCategory[]
+  Employee_ReferenceAwardCategoryName_createdByIdToEmployee Employee?       @relation("ReferenceAwardCategoryName_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_ReferenceAwardCategoryName_updatedByIdToEmployee Employee?       @relation("ReferenceAwardCategoryName_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model ReferenceEventType {
+  name                                              String    @unique
+  description                                       String?
+  isActive                                          Boolean   @default(true)
+  createdAt                                         DateTime  @default(now())
+  updatedAt                                         DateTime
+  id                                                Int       @id @default(autoincrement())
+  createdById                                       Int?
+  updatedById                                       Int?
+  Event                                             Event[]
+  Employee_ReferenceEventType_createdByIdToEmployee Employee? @relation("ReferenceEventType_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_ReferenceEventType_updatedByIdToEmployee Employee? @relation("ReferenceEventType_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model Team {
+  name                                String
+  createdAt                           DateTime                  @default(now())
+  updatedAt                           DateTime
+  id                                  Int                       @id @default(autoincrement())
+  artId                               Int
+  createdById                         Int?
+  updatedById                         Int?
+  EmployeeTeamLink                    EmployeeTeamLink[]
+  Event                               Event[]
+  ART                                 ART                       @relation(fields: [artId], references: [id], onDelete: Cascade)
+  Employee_Team_createdByIdToEmployee Employee?                 @relation("Team_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Team_updatedByIdToEmployee Employee?                 @relation("Team_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  TeamPerformanceFeedback             TeamPerformanceFeedback[]
+
+  @@unique([name, artId])
+  @@index([artId])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model TeamFeedbackRating {
+  ratingValue             Int
+  createdAt               DateTime                @default(now())
+  id                      Int                     @id @default(autoincrement())
+  teamFeedbackId          Int
+  teamCategoryId          Int
+  TeamRatingCategory      TeamRatingCategory      @relation(fields: [teamCategoryId], references: [id])
+  TeamPerformanceFeedback TeamPerformanceFeedback @relation(fields: [teamFeedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([teamFeedbackId, teamCategoryId])
+  @@index([teamCategoryId])
+  @@index([teamFeedbackId])
+}
+
+model TeamPerformanceFeedback {
+  dateSubmitted                                              DateTime                          @default(now())
+  status                                                     TeamFeedbackStatus                @default(Draft)
+  overallComments                                            String?
+  createdAt                                                  DateTime                          @default(now())
+  updatedAt                                                  DateTime
+  id                                                         Int                               @id @default(autoincrement())
+  teamId                                                     Int
+  performanceCycleId                                         Int
+  giverEmployeeId                                            Int
+  createdById                                                Int?
+  updatedById                                                Int?
+  TeamFeedbackRating                                         TeamFeedbackRating[]
+  Employee_TeamPerformanceFeedback_createdByIdToEmployee     Employee?                         @relation("TeamPerformanceFeedback_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_TeamPerformanceFeedback_giverEmployeeIdToEmployee Employee                          @relation("TeamPerformanceFeedback_giverEmployeeIdToEmployee", fields: [giverEmployeeId], references: [id])
+  PerformanceCycle                                           PerformanceCycle                  @relation(fields: [performanceCycleId], references: [id], onDelete: Cascade)
+  Team                                                       Team                              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  Employee_TeamPerformanceFeedback_updatedByIdToEmployee     Employee?                         @relation("TeamPerformanceFeedback_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  TeamPerformanceFeedbackResponse                            TeamPerformanceFeedbackResponse[]
+
+  @@unique([teamId, performanceCycleId, giverEmployeeId])
+  @@index([createdById])
+  @@index([giverEmployeeId])
+  @@index([performanceCycleId])
+  @@index([status])
+  @@index([teamId])
+  @@index([updatedById])
+}
+
+model TeamPerformanceFeedbackResponse {
+  responseText            String
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime
+  id                      Int                     @id @default(autoincrement())
+  teamFeedbackId          Int
+  teamQuestionId          Int
+  TeamPerformanceFeedback TeamPerformanceFeedback @relation(fields: [teamFeedbackId], references: [id], onDelete: Cascade)
+  TeamPerformanceQuestion TeamPerformanceQuestion @relation(fields: [teamQuestionId], references: [id])
+
+  @@unique([teamFeedbackId, teamQuestionId])
+  @@index([teamFeedbackId])
+  @@index([teamQuestionId])
+}
+
+model TeamPerformanceQuestion {
+  questionText                                           String
+  isActive                                               Boolean                           @default(true)
+  createdAt                                              DateTime                          @default(now())
+  updatedAt                                              DateTime
+  id                                                     Int                               @id @default(autoincrement())
+  createdById                                            Int?
+  updatedById                                            Int?
+  TeamPerformanceFeedbackResponse                        TeamPerformanceFeedbackResponse[]
+  Employee_TeamPerformanceQuestion_createdByIdToEmployee Employee?                         @relation("TeamPerformanceQuestion_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_TeamPerformanceQuestion_updatedByIdToEmployee Employee?                         @relation("TeamPerformanceQuestion_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model TeamRatingCategory {
+  name                                              String               @unique
+  description                                       String?
+  isActive                                          Boolean              @default(true)
+  createdAt                                         DateTime             @default(now())
+  updatedAt                                         DateTime
+  id                                                Int                  @id @default(autoincrement())
+  createdById                                       Int?
+  updatedById                                       Int?
+  TeamFeedbackRating                                TeamFeedbackRating[]
+  Employee_TeamRatingCategory_createdByIdToEmployee Employee?            @relation("TeamRatingCategory_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_TeamRatingCategory_updatedByIdToEmployee Employee?            @relation("TeamRatingCategory_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model Vote {
+  voteDate                                DateTime   @default(now())
+  justification                           String
+  credits                                 Int
+  createdAt                               DateTime   @default(now())
+  updatedAt                               DateTime
+  id                                      Int        @id @default(autoincrement())
+  nominationId                            Int
+  voterEmployeeId                         Int
+  createdById                             Int?
+  updatedById                             Int?
+  Employee_Vote_createdByIdToEmployee     Employee?  @relation("Vote_createdByIdToEmployee", fields: [createdById], references: [id])
+  Nomination                              Nomination @relation(fields: [nominationId], references: [id], onDelete: Cascade)
+  Employee_Vote_updatedByIdToEmployee     Employee?  @relation("Vote_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Employee_Vote_voterEmployeeIdToEmployee Employee   @relation("Vote_voterEmployeeIdToEmployee", fields: [voterEmployeeId], references: [id], onDelete: Cascade)
+
+  @@unique([nominationId, voterEmployeeId])
+  @@index([createdById])
+  @@index([nominationId])
+  @@index([updatedById])
+  @@index([voterEmployeeId])
+}
+
+enum EventScopeLevel {
+  Organization
+  ART
+  Team
+}
+
+enum EventStatus {
+  Planning
+  NominationsOpen
+  VotingOpen
+  Judging
+  Completed
+  Cancelled
+}
+
+enum FeedbackRequestStatus {
+  Pending
+  Completed
+  Declined
+}
+
+enum FeedbackType {
+  General
+  Performance
+}
+
+enum PerformanceContext {
+  Sprint
+  PI
+  Overall
+}
+
+enum TeamFeedbackStatus {
+  Draft
+  Submitted
+}

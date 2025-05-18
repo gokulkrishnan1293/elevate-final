@@ -1,0 +1,53 @@
+model RatingCategory {
+  name                                          String           @unique
+  description                                   String?
+  isActive                                      Boolean          @default(true)
+  createdAt                                     DateTime         @default(now())
+  updatedAt                                     DateTime
+  id                                            Int              @id @default(autoincrement())
+  createdById                                   Int?
+  updatedById                                   Int?
+  FeedbackRating                                FeedbackRating[]
+  Employee_RatingCategory_createdByIdToEmployee Employee?        @relation("RatingCategory_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_RatingCategory_updatedByIdToEmployee Employee?        @relation("RatingCategory_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model ReferenceAwardCategoryName {
+  name                                                      String          @unique
+  description                                               String?
+  isActive                                                  Boolean         @default(true)
+  createdAt                                                 DateTime        @default(now())
+  updatedAt                                                 DateTime
+  id                                                        Int             @id @default(autoincrement())
+  createdById                                               Int?
+  updatedById                                               Int?
+  AwardCategory                                             AwardCategory[]
+  Employee_ReferenceAwardCategoryName_createdByIdToEmployee Employee?       @relation("ReferenceAwardCategoryName_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_ReferenceAwardCategoryName_updatedByIdToEmployee Employee?       @relation("ReferenceAwardCategoryName_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model ReferenceEventType {
+  name                                              String    @unique
+  description                                       String?
+  isActive                                          Boolean   @default(true)
+  createdAt                                         DateTime  @default(now())
+  updatedAt                                         DateTime
+  id                                                Int       @id @default(autoincrement())
+  createdById                                       Int?
+  updatedById                                       Int?
+  Event                                             Event[]
+  Employee_ReferenceEventType_createdByIdToEmployee Employee? @relation("ReferenceEventType_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_ReferenceEventType_updatedByIdToEmployee Employee? @relation("ReferenceEventType_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}

@@ -1,0 +1,139 @@
+model Employee {
+  name                                                                                  String
+  email                                                                                 String                        @unique
+  lanId                                                                                 String                        @unique
+  isContractor                                                                          Boolean                       @default(true)
+  createdAt                                                                             DateTime                      @default(now())
+  updatedAt                                                                             DateTime
+  id                                                                                    Int                           @id @default(autoincrement())
+  cignaManagerId                                                                        Int?
+  updatedById                                                                           Int?
+  isUserActive                                                                          Boolean                       @default(true)
+  ART_ART_createdByIdToEmployee                                                         ART[]                         @relation("ART_createdByIdToEmployee")
+  ART_ART_updatedByIdToEmployee                                                         ART[]                         @relation("ART_updatedByIdToEmployee")
+  Award_Award_createdByIdToEmployee                                                     Award[]                       @relation("Award_createdByIdToEmployee")
+  Award_Award_nominatorEmployeeIdToEmployee                                             Award[]                       @relation("Award_nominatorEmployeeIdToEmployee")
+  Award_Award_recipientEmployeeIdToEmployee                                             Award[]                       @relation("Award_recipientEmployeeIdToEmployee")
+  Award_Award_updatedByIdToEmployee                                                     Award[]                       @relation("Award_updatedByIdToEmployee")
+  AwardCategory_AwardCategory_createdByIdToEmployee                                     AwardCategory[]               @relation("AwardCategory_createdByIdToEmployee")
+  AwardCategory_AwardCategory_updatedByIdToEmployee                                     AwardCategory[]               @relation("AwardCategory_updatedByIdToEmployee")
+  Employee_Employee_cignaManagerIdToEmployee                                            Employee?                     @relation("Employee_cignaManagerIdToEmployee", fields: [cignaManagerId], references: [id])
+  other_Employee_Employee_cignaManagerIdToEmployee                                      Employee[]                    @relation("Employee_cignaManagerIdToEmployee")
+  Employee_Employee_updatedByIdToEmployee                                               Employee?                     @relation("Employee_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  other_Employee_Employee_updatedByIdToEmployee                                         Employee[]                    @relation("Employee_updatedByIdToEmployee")
+  EmployeeARTLink                                                                       EmployeeARTLink[]
+  EmployeeAchievement_EmployeeAchievement_createdByIdToEmployee                         EmployeeAchievement[]         @relation("EmployeeAchievement_createdByIdToEmployee")
+  EmployeeAchievement_EmployeeAchievement_employeeIdToEmployee                          EmployeeAchievement[]         @relation("EmployeeAchievement_employeeIdToEmployee")
+  EmployeeAchievement_EmployeeAchievement_updatedByIdToEmployee                         EmployeeAchievement[]         @relation("EmployeeAchievement_updatedByIdToEmployee")
+  EmployeeOrgLink                                                                       EmployeeOrgLink[]
+  EmployeeTeamLink                                                                      EmployeeTeamLink[]
+  Event_Event_createdByIdToEmployee                                                     Event[]                       @relation("Event_createdByIdToEmployee")
+  Event_Event_eventOwnerIdToEmployee                                                    Event[]                       @relation("Event_eventOwnerIdToEmployee")
+  Event_Event_updatedByIdToEmployee                                                     Event[]                       @relation("Event_updatedByIdToEmployee")
+  EventJudge                                                                            EventJudge[]
+  Feedback_Feedback_createdByIdToEmployee                                               Feedback[]                    @relation("Feedback_createdByIdToEmployee")
+  Feedback_Feedback_giverEmployeeIdToEmployee                                           Feedback[]                    @relation("Feedback_giverEmployeeIdToEmployee")
+  Feedback_Feedback_receiverEmployeeIdToEmployee                                        Feedback[]                    @relation("Feedback_receiverEmployeeIdToEmployee")
+  Feedback_Feedback_updatedByIdToEmployee                                               Feedback[]                    @relation("Feedback_updatedByIdToEmployee")
+  FeedbackRequest_FeedbackRequest_createdByIdToEmployee                                 FeedbackRequest[]             @relation("FeedbackRequest_createdByIdToEmployee")
+  FeedbackRequest_FeedbackRequest_requestedForEmployeeIdToEmployee                      FeedbackRequest[]             @relation("FeedbackRequest_requestedForEmployeeIdToEmployee")
+  FeedbackRequest_FeedbackRequest_requestedFromEmployeeIdToEmployee                     FeedbackRequest[]             @relation("FeedbackRequest_requestedFromEmployeeIdToEmployee")
+  FeedbackRequest_FeedbackRequest_requesterEmployeeIdToEmployee                         FeedbackRequest[]             @relation("FeedbackRequest_requesterEmployeeIdToEmployee")
+  FeedbackRequest_FeedbackRequest_updatedByIdToEmployee                                 FeedbackRequest[]             @relation("FeedbackRequest_updatedByIdToEmployee")
+  Nomination_Nomination_createdByIdToEmployee                                           Nomination[]                  @relation("Nomination_createdByIdToEmployee")
+  Nomination_Nomination_nominatorEmployeeIdToEmployee                                   Nomination[]                  @relation("Nomination_nominatorEmployeeIdToEmployee")
+  Nomination_Nomination_nomineeEmployeeIdToEmployee                                     Nomination[]                  @relation("Nomination_nomineeEmployeeIdToEmployee")
+  Nomination_Nomination_updatedByIdToEmployee                                           Nomination[]                  @relation("Nomination_updatedByIdToEmployee")
+  Organization_Organization_createdByIdToEmployee                                       Organization[]                @relation("Organization_createdByIdToEmployee")
+  Organization_Organization_updatedByIdToEmployee                                       Organization[]                @relation("Organization_updatedByIdToEmployee")
+  PerformanceCycle_PerformanceCycle_createdByIdToEmployee                               PerformanceCycle[]            @relation("PerformanceCycle_createdByIdToEmployee")
+  PerformanceCycle_PerformanceCycle_updatedByIdToEmployee                               PerformanceCycle[]            @relation("PerformanceCycle_updatedByIdToEmployee")
+  PerformanceFeedbackResponse_PerformanceFeedbackResponse_employeeResponderIdToEmployee PerformanceFeedbackResponse[] @relation("PerformanceFeedbackResponse_employeeResponderIdToEmployee")
+  PerformanceFeedbackResponse_PerformanceFeedbackResponse_managerResponderIdToEmployee  PerformanceFeedbackResponse[] @relation("PerformanceFeedbackResponse_managerResponderIdToEmployee")
+  PerformanceQuestion_PerformanceQuestion_createdByIdToEmployee                         PerformanceQuestion[]         @relation("PerformanceQuestion_createdByIdToEmployee")
+  PerformanceQuestion_PerformanceQuestion_updatedByIdToEmployee                         PerformanceQuestion[]         @relation("PerformanceQuestion_updatedByIdToEmployee")
+  RatingCategory_RatingCategory_createdByIdToEmployee                                   RatingCategory[]              @relation("RatingCategory_createdByIdToEmployee")
+  RatingCategory_RatingCategory_updatedByIdToEmployee                                   RatingCategory[]              @relation("RatingCategory_updatedByIdToEmployee")
+  ReferenceAwardCategoryName_ReferenceAwardCategoryName_createdByIdToEmployee           ReferenceAwardCategoryName[]  @relation("ReferenceAwardCategoryName_createdByIdToEmployee")
+  ReferenceAwardCategoryName_ReferenceAwardCategoryName_updatedByIdToEmployee           ReferenceAwardCategoryName[]  @relation("ReferenceAwardCategoryName_updatedByIdToEmployee")
+  ReferenceEventType_ReferenceEventType_createdByIdToEmployee                           ReferenceEventType[]          @relation("ReferenceEventType_createdByIdToEmployee")
+  ReferenceEventType_ReferenceEventType_updatedByIdToEmployee                           ReferenceEventType[]          @relation("ReferenceEventType_updatedByIdToEmployee")
+  Team_Team_createdByIdToEmployee                                                       Team[]                        @relation("Team_createdByIdToEmployee")
+  Team_Team_updatedByIdToEmployee                                                       Team[]                        @relation("Team_updatedByIdToEmployee")
+  TeamPerformanceFeedback_TeamPerformanceFeedback_createdByIdToEmployee                 TeamPerformanceFeedback[]     @relation("TeamPerformanceFeedback_createdByIdToEmployee")
+  TeamPerformanceFeedback_TeamPerformanceFeedback_giverEmployeeIdToEmployee             TeamPerformanceFeedback[]     @relation("TeamPerformanceFeedback_giverEmployeeIdToEmployee")
+  TeamPerformanceFeedback_TeamPerformanceFeedback_updatedByIdToEmployee                 TeamPerformanceFeedback[]     @relation("TeamPerformanceFeedback_updatedByIdToEmployee")
+  TeamPerformanceQuestion_TeamPerformanceQuestion_createdByIdToEmployee                 TeamPerformanceQuestion[]     @relation("TeamPerformanceQuestion_createdByIdToEmployee")
+  TeamPerformanceQuestion_TeamPerformanceQuestion_updatedByIdToEmployee                 TeamPerformanceQuestion[]     @relation("TeamPerformanceQuestion_updatedByIdToEmployee")
+  TeamRatingCategory_TeamRatingCategory_createdByIdToEmployee                           TeamRatingCategory[]          @relation("TeamRatingCategory_createdByIdToEmployee")
+  TeamRatingCategory_TeamRatingCategory_updatedByIdToEmployee                           TeamRatingCategory[]          @relation("TeamRatingCategory_updatedByIdToEmployee")
+  Vote_Vote_createdByIdToEmployee                                                       Vote[]                        @relation("Vote_createdByIdToEmployee")
+  Vote_Vote_updatedByIdToEmployee                                                       Vote[]                        @relation("Vote_updatedByIdToEmployee")
+  Vote_Vote_voterEmployeeIdToEmployee                                                   Vote[]                        @relation("Vote_voterEmployeeIdToEmployee")
+
+  @@index([cignaManagerId])
+  @@index([email])
+  @@index([lanId])
+  @@index([updatedById])
+}
+
+model EmployeeARTLink {
+  role       String
+  createdAt  DateTime @default(now())
+  employeeId Int
+  artId      Int
+  ART        ART      @relation(fields: [artId], references: [id], onDelete: Cascade)
+  Employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, artId, role])
+  @@index([artId])
+  @@index([employeeId])
+}
+
+model EmployeeAchievement {
+  description                                        String
+  achievementDate                                    DateTime
+  dateLogged                                         DateTime  @default(now())
+  category                                           String?
+  createdAt                                          DateTime  @default(now())
+  updatedAt                                          DateTime
+  id                                                 Int       @id @default(autoincrement())
+  employeeId                                         Int
+  createdById                                        Int?
+  updatedById                                        Int?
+  Employee_EmployeeAchievement_createdByIdToEmployee Employee? @relation("EmployeeAchievement_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_EmployeeAchievement_employeeIdToEmployee  Employee  @relation("EmployeeAchievement_employeeIdToEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  Employee_EmployeeAchievement_updatedByIdToEmployee Employee? @relation("EmployeeAchievement_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([achievementDate])
+  @@index([createdById])
+  @@index([employeeId])
+  @@index([updatedById])
+}
+
+model EmployeeOrgLink {
+  role           String
+  createdAt      DateTime     @default(now())
+  employeeId     Int
+  organizationId Int
+  Employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Organization   Organization @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "EmployeeOrgLink_orgAdminLink_fkey")
+
+  @@id([employeeId, organizationId, role])
+  @@index([employeeId])
+  @@index([organizationId])
+}
+
+model EmployeeTeamLink {
+  jobTitle    String
+  isTeamOwner Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  employeeId  Int
+  teamId      Int
+  Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, teamId])
+  @@index([employeeId])
+  @@index([teamId])
+}

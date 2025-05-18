@@ -1,0 +1,63 @@
+model PerformanceCycle {
+  name                                            String
+  startDate                                       DateTime
+  endDate                                         DateTime
+  isActive                                        Boolean                   @default(true)
+  createdAt                                       DateTime                  @default(now())
+  updatedAt                                       DateTime
+  id                                              Int                       @id @default(autoincrement())
+  organizationId                                  Int
+  createdById                                     Int?
+  updatedById                                     Int?
+  Feedback                                        Feedback[]
+  Employee_PerformanceCycle_createdByIdToEmployee Employee?                 @relation("PerformanceCycle_createdByIdToEmployee", fields: [createdById], references: [id])
+  Organization                                    Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Employee_PerformanceCycle_updatedByIdToEmployee Employee?                 @relation("PerformanceCycle_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  TeamPerformanceFeedback                         TeamPerformanceFeedback[]
+
+  @@unique([name, organizationId])
+  @@index([createdById])
+  @@index([isActive])
+  @@index([organizationId])
+  @@index([updatedById])
+}
+
+model PerformanceFeedbackResponse {
+  employeeResponse                                                   String?
+  managerResponse                                                    String?
+  createdAt                                                          DateTime            @default(now())
+  updatedAt                                                          DateTime
+  id                                                                 Int                 @id @default(autoincrement())
+  feedbackId                                                         Int
+  questionId                                                         Int
+  employeeResponderId                                                Int?
+  managerResponderId                                                 Int?
+  Employee_PerformanceFeedbackResponse_employeeResponderIdToEmployee Employee?           @relation("PerformanceFeedbackResponse_employeeResponderIdToEmployee", fields: [employeeResponderId], references: [id])
+  Feedback                                                           Feedback            @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  Employee_PerformanceFeedbackResponse_managerResponderIdToEmployee  Employee?           @relation("PerformanceFeedbackResponse_managerResponderIdToEmployee", fields: [managerResponderId], references: [id])
+  PerformanceQuestion                                                PerformanceQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([feedbackId, questionId])
+  @@index([employeeResponderId])
+  @@index([feedbackId])
+  @@index([managerResponderId])
+  @@index([questionId])
+}
+
+model PerformanceQuestion {
+  questionText                                       String
+  category                                           String?
+  isActive                                           Boolean                       @default(true)
+  createdAt                                          DateTime                      @default(now())
+  updatedAt                                          DateTime
+  id                                                 Int                           @id @default(autoincrement())
+  createdById                                        Int?
+  updatedById                                        Int?
+  PerformanceFeedbackResponse                        PerformanceFeedbackResponse[]
+  Employee_PerformanceQuestion_createdByIdToEmployee Employee?                     @relation("PerformanceQuestion_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_PerformanceQuestion_updatedByIdToEmployee Employee?                     @relation("PerformanceQuestion_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}

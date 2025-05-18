@@ -1,0 +1,20 @@
+model ART {
+  name                               String
+  createdAt                          DateTime          @default(now())
+  updatedAt                          DateTime          @updatedAt
+  id                                 Int               @id @default(autoincrement())
+  organizationId                     Int
+  createdById                        Int?
+  updatedById                        Int?
+  Employee_ART_createdByIdToEmployee Employee?         @relation("ART_createdByIdToEmployee", fields: [createdById], references: [id])
+  Organization                       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Employee_ART_updatedByIdToEmployee Employee?         @relation("ART_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  EmployeeARTLink                    EmployeeARTLink[]
+  Event                              Event[]
+  Team                               Team[]
+
+  @@unique([name, organizationId])
+  @@index([createdById])
+  @@index([organizationId])
+  @@index([updatedById])
+}

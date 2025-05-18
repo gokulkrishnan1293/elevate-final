@@ -1,0 +1,113 @@
+model Team {
+  name                                String
+  createdAt                           DateTime                  @default(now())
+  updatedAt                           DateTime
+  id                                  Int                       @id @default(autoincrement())
+  artId                               Int
+  createdById                         Int?
+  updatedById                         Int?
+  EmployeeTeamLink                    EmployeeTeamLink[]
+  Event                               Event[]
+  ART                                 ART                       @relation(fields: [artId], references: [id], onDelete: Cascade)
+  Employee_Team_createdByIdToEmployee Employee?                 @relation("Team_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Team_updatedByIdToEmployee Employee?                 @relation("Team_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  TeamPerformanceFeedback             TeamPerformanceFeedback[]
+
+  @@unique([name, artId])
+  @@index([artId])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model TeamFeedbackRating {
+  ratingValue             Int
+  createdAt               DateTime                @default(now())
+  id                      Int                     @id @default(autoincrement())
+  teamFeedbackId          Int
+  teamCategoryId          Int
+  TeamRatingCategory      TeamRatingCategory      @relation(fields: [teamCategoryId], references: [id])
+  TeamPerformanceFeedback TeamPerformanceFeedback @relation(fields: [teamFeedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([teamFeedbackId, teamCategoryId])
+  @@index([teamCategoryId])
+  @@index([teamFeedbackId])
+}
+
+model TeamPerformanceFeedback {
+  dateSubmitted                                              DateTime                          @default(now())
+  status                                                     TeamFeedbackStatus                @default(Draft)
+  overallComments                                            String?
+  createdAt                                                  DateTime                          @default(now())
+  updatedAt                                                  DateTime
+  id                                                         Int                               @id @default(autoincrement())
+  teamId                                                     Int
+  performanceCycleId                                         Int
+  giverEmployeeId                                            Int
+  createdById                                                Int?
+  updatedById                                                Int?
+  TeamFeedbackRating                                         TeamFeedbackRating[]
+  Employee_TeamPerformanceFeedback_createdByIdToEmployee     Employee?                         @relation("TeamPerformanceFeedback_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_TeamPerformanceFeedback_giverEmployeeIdToEmployee Employee                          @relation("TeamPerformanceFeedback_giverEmployeeIdToEmployee", fields: [giverEmployeeId], references: [id])
+  PerformanceCycle                                           PerformanceCycle                  @relation(fields: [performanceCycleId], references: [id], onDelete: Cascade)
+  Team                                                       Team                              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  Employee_TeamPerformanceFeedback_updatedByIdToEmployee     Employee?                         @relation("TeamPerformanceFeedback_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  TeamPerformanceFeedbackResponse                            TeamPerformanceFeedbackResponse[]
+
+  @@unique([teamId, performanceCycleId, giverEmployeeId])
+  @@index([createdById])
+  @@index([giverEmployeeId])
+  @@index([performanceCycleId])
+  @@index([status])
+  @@index([teamId])
+  @@index([updatedById])
+}
+
+model TeamPerformanceFeedbackResponse {
+  responseText            String
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime
+  id                      Int                     @id @default(autoincrement())
+  teamFeedbackId          Int
+  teamQuestionId          Int
+  TeamPerformanceFeedback TeamPerformanceFeedback @relation(fields: [teamFeedbackId], references: [id], onDelete: Cascade)
+  TeamPerformanceQuestion TeamPerformanceQuestion @relation(fields: [teamQuestionId], references: [id])
+
+  @@unique([teamFeedbackId, teamQuestionId])
+  @@index([teamFeedbackId])
+  @@index([teamQuestionId])
+}
+
+model TeamPerformanceQuestion {
+  questionText                                           String
+  isActive                                               Boolean                           @default(true)
+  createdAt                                              DateTime                          @default(now())
+  updatedAt                                              DateTime
+  id                                                     Int                               @id @default(autoincrement())
+  createdById                                            Int?
+  updatedById                                            Int?
+  TeamPerformanceFeedbackResponse                        TeamPerformanceFeedbackResponse[]
+  Employee_TeamPerformanceQuestion_createdByIdToEmployee Employee?                         @relation("TeamPerformanceQuestion_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_TeamPerformanceQuestion_updatedByIdToEmployee Employee?                         @relation("TeamPerformanceQuestion_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}
+
+model TeamRatingCategory {
+  name                                              String               @unique
+  description                                       String?
+  isActive                                          Boolean              @default(true)
+  createdAt                                         DateTime             @default(now())
+  updatedAt                                         DateTime
+  id                                                Int                  @id @default(autoincrement())
+  createdById                                       Int?
+  updatedById                                       Int?
+  TeamFeedbackRating                                TeamFeedbackRating[]
+  Employee_TeamRatingCategory_createdByIdToEmployee Employee?            @relation("TeamRatingCategory_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_TeamRatingCategory_updatedByIdToEmployee Employee?            @relation("TeamRatingCategory_updatedByIdToEmployee", fields: [updatedById], references: [id])
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([updatedById])
+}

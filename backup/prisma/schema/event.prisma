@@ -1,0 +1,52 @@
+model Event {
+  name                                  String
+  description                           String?
+  startDate                             DateTime?
+  endDate                               DateTime?
+  nominationEndDate                     DateTime?
+  status                                EventStatus        @default(Planning)
+  scopeLevel                            EventScopeLevel
+  isVotingAnonymous                     Boolean            @default(false)
+  isNominationAnonymous                 Boolean            @default(false)
+  createdAt                             DateTime           @default(now())
+  updatedAt                             DateTime
+  id                                    Int                @id @default(autoincrement())
+  eventTypeId                           Int
+  eventOwnerId                          Int
+  scopeOrganizationId                   Int?
+  scopeArtId                            Int?
+  scopeTeamId                           Int?
+  createdById                           Int?
+  updatedById                           Int?
+  AwardCategory                         AwardCategory[]
+  Employee_Event_createdByIdToEmployee  Employee?          @relation("Event_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Event_eventOwnerIdToEmployee Employee           @relation("Event_eventOwnerIdToEmployee", fields: [eventOwnerId], references: [id])
+  ReferenceEventType                    ReferenceEventType @relation(fields: [eventTypeId], references: [id])
+  ART                                   ART?               @relation(fields: [scopeArtId], references: [id], onDelete: Cascade)
+  Organization                          Organization?      @relation(fields: [scopeOrganizationId], references: [id], onDelete: Cascade)
+  Team                                  Team?              @relation(fields: [scopeTeamId], references: [id], onDelete: Cascade)
+  Employee_Event_updatedByIdToEmployee  Employee?          @relation("Event_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  EventJudge                            EventJudge[]
+
+  @@index([createdById])
+  @@index([eventOwnerId])
+  @@index([eventTypeId])
+  @@index([scopeArtId])
+  @@index([scopeLevel])
+  @@index([scopeOrganizationId])
+  @@index([scopeTeamId])
+  @@index([status])
+  @@index([updatedById])
+}
+
+model EventJudge {
+  createdAt       DateTime @default(now())
+  eventId         Int
+  judgeEmployeeId Int
+  Event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Employee        Employee @relation(fields: [judgeEmployeeId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, judgeEmployeeId])
+  @@index([eventId])
+  @@index([judgeEmployeeId])
+}

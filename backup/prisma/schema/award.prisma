@@ -1,0 +1,98 @@
+model Award {
+  awardDate                                    DateTime
+  justification                                String?
+  awardValue                                   String?
+  createdAt                                    DateTime      @default(now())
+  updatedAt                                    DateTime
+  id                                           Int           @id @default(autoincrement())
+  recipientEmployeeId                          Int
+  awardCategoryId                              Int
+  winningNominationId                          Int?          @unique
+  nominatorEmployeeId                          Int?
+  createdById                                  Int?
+  updatedById                                  Int?
+  AwardCategory                                AwardCategory @relation(fields: [awardCategoryId], references: [id], onDelete: Cascade)
+  Employee_Award_createdByIdToEmployee         Employee?     @relation("Award_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Award_nominatorEmployeeIdToEmployee Employee?     @relation("Award_nominatorEmployeeIdToEmployee", fields: [nominatorEmployeeId], references: [id])
+  Employee_Award_recipientEmployeeIdToEmployee Employee      @relation("Award_recipientEmployeeIdToEmployee", fields: [recipientEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Award_updatedByIdToEmployee         Employee?     @relation("Award_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Nomination                                   Nomination?   @relation(fields: [winningNominationId], references: [id])
+
+  @@index([awardCategoryId])
+  @@index([createdById])
+  @@index([nominatorEmployeeId])
+  @@index([recipientEmployeeId])
+  @@index([updatedById])
+}
+
+model AwardCategory {
+  description                                  String?
+  createdAt                                    DateTime                   @default(now())
+  updatedAt                                    DateTime
+  id                                           Int                        @id @default(autoincrement())
+  eventId                                      Int
+  categoryNameId                               Int
+  createdById                                  Int?
+  updatedById                                  Int?
+  Award                                        Award[]
+  ReferenceAwardCategoryName                   ReferenceAwardCategoryName @relation(fields: [categoryNameId], references: [id])
+  Employee_AwardCategory_createdByIdToEmployee Employee?                  @relation("AwardCategory_createdByIdToEmployee", fields: [createdById], references: [id])
+  Event                                        Event                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Employee_AwardCategory_updatedByIdToEmployee Employee?                  @relation("AwardCategory_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Nomination                                   Nomination[]
+
+  @@unique([eventId, categoryNameId])
+  @@index([categoryNameId])
+  @@index([createdById])
+  @@index([eventId])
+  @@index([updatedById])
+}
+
+model Nomination {
+  nominationDate                                    DateTime      @default(now())
+  justification                                     String
+  createdAt                                         DateTime      @default(now())
+  updatedAt                                         DateTime
+  id                                                Int           @id @default(autoincrement())
+  awardCategoryId                                   Int
+  nomineeEmployeeId                                 Int
+  nominatorEmployeeId                               Int
+  createdById                                       Int?
+  updatedById                                       Int?
+  Award                                             Award?
+  AwardCategory                                     AwardCategory @relation(fields: [awardCategoryId], references: [id], onDelete: Cascade)
+  Employee_Nomination_createdByIdToEmployee         Employee?     @relation("Nomination_createdByIdToEmployee", fields: [createdById], references: [id])
+  Employee_Nomination_nominatorEmployeeIdToEmployee Employee      @relation("Nomination_nominatorEmployeeIdToEmployee", fields: [nominatorEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Nomination_nomineeEmployeeIdToEmployee   Employee      @relation("Nomination_nomineeEmployeeIdToEmployee", fields: [nomineeEmployeeId], references: [id], onDelete: Cascade)
+  Employee_Nomination_updatedByIdToEmployee         Employee?     @relation("Nomination_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Vote                                              Vote[]
+
+  @@index([awardCategoryId])
+  @@index([createdById])
+  @@index([nominatorEmployeeId])
+  @@index([nomineeEmployeeId])
+  @@index([updatedById])
+}
+
+model Vote {
+  voteDate                                DateTime   @default(now())
+  justification                           String
+  credits                                 Int
+  createdAt                               DateTime   @default(now())
+  updatedAt                               DateTime
+  id                                      Int        @id @default(autoincrement())
+  nominationId                            Int
+  voterEmployeeId                         Int
+  createdById                             Int?
+  updatedById                             Int?
+  Employee_Vote_createdByIdToEmployee     Employee?  @relation("Vote_createdByIdToEmployee", fields: [createdById], references: [id])
+  Nomination                              Nomination @relation(fields: [nominationId], references: [id], onDelete: Cascade)
+  Employee_Vote_updatedByIdToEmployee     Employee?  @relation("Vote_updatedByIdToEmployee", fields: [updatedById], references: [id])
+  Employee_Vote_voterEmployeeIdToEmployee Employee   @relation("Vote_voterEmployeeIdToEmployee", fields: [voterEmployeeId], references: [id], onDelete: Cascade)
+
+  @@unique([nominationId, voterEmployeeId])
+  @@index([createdById])
+  @@index([nominationId])
+  @@index([updatedById])
+  @@index([voterEmployeeId])
+}
