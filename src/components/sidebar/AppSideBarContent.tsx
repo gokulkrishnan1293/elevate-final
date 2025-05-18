@@ -18,6 +18,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import ScreenSizeWidget from "../ui/ScreenSizeWidget";
 
 export default function AppSideBarContent({
   items,
@@ -77,6 +78,7 @@ export default function AppSideBarContent({
           )
         )}
       </SidebarMenu>
+      <ScreenSizeWidget />
     </SidebarGroup>
   );
 }
