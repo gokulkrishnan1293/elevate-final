@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOktaAuth } from "@okta/okta-react";
 import { AuthProviderProps } from "@/types/authProvider";
 import { usePathname } from "next/navigation";
+import { upsertEmployee, type EmployeeInput } from "@/actions/authentication";
 
 const RequireAuth: React.FC<AuthProviderProps> = ({ children }) => {
   const { oktaAuth, authState } = useOktaAuth();
@@ -20,13 +21,39 @@ const RequireAuth: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (!authState?.isAuthenticated) {
-      if (pathname !== callbackPath) {
-        const originalUri = pathname;
-        oktaAuth.signInWithRedirect({ originalUri });
+    const handleAuth = async () => {
+      if (authState?.isAuthenticated) {
+        try {
+          const user = await oktaAuth.getUser();
+          if (user) {
+            const employeeData: EmployeeInput = {
+              lanId: String(user?.lanID || "DUMMY"),
+              firstName: String(user?.firstName || "DUMMY"),
+              lastName: String(user?.lastName || "DUMMY"),
+              email: String(user?.email || "DUMMY@CIGNA.COM"),
+              profilePhoto: undefined,
+              cignaManagerId: undefined,
+              isContractor: undefined,
+              isUserActive: true,
+            };
+
+            console.log("Attempting to upsert employee:", employeeData);
+            const result = await upsertEmployee(employeeData);
+            console.log("Upsert employee result:", result);
+          }
+        } catch (error) {
+          console.error("Error during user upsert process:", error);
+        }
+      } else {
+        if (pathname !== callbackPath) {
+          const originalUri = pathname;
+          oktaAuth.signInWithRedirect({ originalUri });
+        }
       }
-    }
-  }, [authState, pathname, callbackPath, oktaAuth]);
+    };
+
+    handleAuth();
+  }, [authState, oktaAuth, pathname, callbackPath]);
 
   return <div> {children}</div>;
 };

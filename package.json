@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
+    "drizzle-zod": "^0.7.1",
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^0.510.0",
     "motion": "^12.12.0",
