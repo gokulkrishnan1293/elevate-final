@@ -27,9 +27,9 @@ const RequireAuth: React.FC<AuthProviderProps> = ({ children }) => {
           const user = await oktaAuth.getUser();
           if (user) {
             const employeeData: EmployeeInput = {
-              lanId: String(user?.lanID || "DUMMY"),
-              firstName: String(user?.firstName || "DUMMY"),
-              lastName: String(user?.lastName || "DUMMY"),
+              lanId: String(user?.lanID || user?.email),
+              firstName: String(user?.firstName || user?.email),
+              lastName: String(user?.lastName || user?.email),
               email: String(user?.email || "DUMMY@CIGNA.COM"),
               profilePhoto: undefined,
               cignaManagerId: undefined,
@@ -37,9 +37,7 @@ const RequireAuth: React.FC<AuthProviderProps> = ({ children }) => {
               isUserActive: true,
             };
 
-            console.log("Attempting to upsert employee:", employeeData);
             const result = await upsertEmployee(employeeData);
-            console.log("Upsert employee result:", result);
           }
         } catch (error) {
           console.error("Error during user upsert process:", error);

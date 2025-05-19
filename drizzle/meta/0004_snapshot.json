@@ -1,0 +1,889 @@
+{
+  "id": "60d18fc2-c457-41fb-a06f-a83a5ec3ce52",
+  "prevId": "5561c2cf-aec4-4ceb-aadd-be2157693309",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "elevate.art": {
+      "name": "art",
+      "schema": "elevate",
+      "columns": {
+        "art_key": {
+          "name": "art_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "art_name": {
+          "name": "art_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_key": {
+          "name": "organization_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "art_organization_id_idx": {
+          "name": "art_organization_id_idx",
+          "columns": [
+            {
+              "expression": "organization_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "art_created_by_id_idx": {
+          "name": "art_created_by_id_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "art_updated_by_id_idx": {
+          "name": "art_updated_by_id_idx",
+          "columns": [
+            {
+              "expression": "updated_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "art_organization_key_organization_organization_key_fk": {
+          "name": "art_organization_key_organization_organization_key_fk",
+          "tableFrom": "art",
+          "tableTo": "organization",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "organization_key"
+          ],
+          "columnsTo": [
+            "organization_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "art_name_organization_id_unique": {
+          "name": "art_name_organization_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "art_name",
+            "organization_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.employee_art": {
+      "name": "employee_art",
+      "schema": "",
+      "columns": {
+        "employee_key": {
+          "name": "employee_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art_key": {
+          "name": "art_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art_owner": {
+          "name": "art_owner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "employee_art_link_art_id_idx": {
+          "name": "employee_art_link_art_id_idx",
+          "columns": [
+            {
+              "expression": "art_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employee_art_link_employee_id_idx": {
+          "name": "employee_art_link_employee_id_idx",
+          "columns": [
+            {
+              "expression": "employee_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "employee_art_employee_key_employee_employee_key_fk": {
+          "name": "employee_art_employee_key_employee_employee_key_fk",
+          "tableFrom": "employee_art",
+          "tableTo": "employee",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "employee_key"
+          ],
+          "columnsTo": [
+            "employee_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "employee_art_art_key_art_art_key_fk": {
+          "name": "employee_art_art_key_art_art_key_fk",
+          "tableFrom": "employee_art",
+          "tableTo": "art",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "art_key"
+          ],
+          "columnsTo": [
+            "art_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "employee_art_link_pkey": {
+          "name": "employee_art_link_pkey",
+          "columns": [
+            "employee_key",
+            "art_key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.employee_org": {
+      "name": "employee_org",
+      "schema": "",
+      "columns": {
+        "employee_key": {
+          "name": "employee_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_key": {
+          "name": "organization_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "org_owner": {
+          "name": "org_owner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "employee_org_link_employee_id_idx": {
+          "name": "employee_org_link_employee_id_idx",
+          "columns": [
+            {
+              "expression": "employee_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employee_org_link_organization_id_idx": {
+          "name": "employee_org_link_organization_id_idx",
+          "columns": [
+            {
+              "expression": "organization_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "employee_org_employee_key_employee_employee_key_fk": {
+          "name": "employee_org_employee_key_employee_employee_key_fk",
+          "tableFrom": "employee_org",
+          "tableTo": "employee",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "employee_key"
+          ],
+          "columnsTo": [
+            "employee_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "employee_org_organization_key_organization_organization_key_fk": {
+          "name": "employee_org_organization_key_organization_organization_key_fk",
+          "tableFrom": "employee_org",
+          "tableTo": "organization",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "organization_key"
+          ],
+          "columnsTo": [
+            "organization_key"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "employee_org_link_pkey": {
+          "name": "employee_org_link_pkey",
+          "columns": [
+            "employee_key",
+            "organization_key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.employee_team": {
+      "name": "employee_team",
+      "schema": "",
+      "columns": {
+        "employee_key": {
+          "name": "employee_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_key": {
+          "name": "team_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_title": {
+          "name": "job_title",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "team_owner": {
+          "name": "team_owner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "employee_team_link_employee_id_idx": {
+          "name": "employee_team_link_employee_id_idx",
+          "columns": [
+            {
+              "expression": "employee_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employee_team_link_team_id_idx": {
+          "name": "employee_team_link_team_id_idx",
+          "columns": [
+            {
+              "expression": "team_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "employee_team_employee_key_employee_employee_key_fk": {
+          "name": "employee_team_employee_key_employee_employee_key_fk",
+          "tableFrom": "employee_team",
+          "tableTo": "employee",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "employee_key"
+          ],
+          "columnsTo": [
+            "employee_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "employee_team_team_key_team_team_key_fk": {
+          "name": "employee_team_team_key_team_team_key_fk",
+          "tableFrom": "employee_team",
+          "tableTo": "team",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "team_key"
+          ],
+          "columnsTo": [
+            "team_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "employee_team_link_pkey": {
+          "name": "employee_team_link_pkey",
+          "columns": [
+            "employee_key",
+            "team_key",
+            "job_title"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "elevate.employee": {
+      "name": "employee",
+      "schema": "elevate",
+      "columns": {
+        "employee_key": {
+          "name": "employee_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lan_id": {
+          "name": "lan_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cigna_manager_lan_id": {
+          "name": "cigna_manager_lan_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_contractor": {
+          "name": "is_contractor",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "is_user_active": {
+          "name": "is_user_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "profile_photo": {
+          "name": "profile_photo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "employee_cigna_manager_id_idx": {
+          "name": "employee_cigna_manager_id_idx",
+          "columns": [
+            {
+              "expression": "cigna_manager_lan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employee_email_idx": {
+          "name": "employee_email_idx",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "employee_lan_id_idx": {
+          "name": "employee_lan_id_idx",
+          "columns": [
+            {
+              "expression": "lan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "employee_email_unique": {
+          "name": "employee_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        },
+        "employee_lan_id_unique": {
+          "name": "employee_lan_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "lan_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "elevate.organization": {
+      "name": "organization",
+      "schema": "elevate",
+      "columns": {
+        "organization_key": {
+          "name": "organization_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_name": {
+          "name": "organization_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "organization_organization_name_unique": {
+          "name": "organization_organization_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "organization_name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "elevate.team": {
+      "name": "team",
+      "schema": "elevate",
+      "columns": {
+        "team_key": {
+          "name": "team_key",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "team_name": {
+          "name": "team_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art_key": {
+          "name": "art_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_key": {
+          "name": "organization_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "team_art_id_idx": {
+          "name": "team_art_id_idx",
+          "columns": [
+            {
+              "expression": "art_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "team_organization_id_idx": {
+          "name": "team_organization_id_idx",
+          "columns": [
+            {
+              "expression": "organization_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "team_created_by_id_idx": {
+          "name": "team_created_by_id_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "team_updated_by_id_idx": {
+          "name": "team_updated_by_id_idx",
+          "columns": [
+            {
+              "expression": "updated_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "team_art_key_art_art_key_fk": {
+          "name": "team_art_key_art_art_key_fk",
+          "tableFrom": "team",
+          "tableTo": "art",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "art_key"
+          ],
+          "columnsTo": [
+            "art_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "team_organization_key_art_art_key_fk": {
+          "name": "team_organization_key_art_art_key_fk",
+          "tableFrom": "team",
+          "tableTo": "art",
+          "schemaTo": "elevate",
+          "columnsFrom": [
+            "organization_key"
+          ],
+          "columnsTo": [
+            "art_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "team_name_art_id_unique": {
+          "name": "team_name_art_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "team_name",
+            "art_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

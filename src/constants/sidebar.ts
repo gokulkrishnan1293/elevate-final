@@ -48,13 +48,21 @@ export const sidebarLinks = [
     ],
   },
   {
-    title: "Settings",
-    url: "/settings",
+    title: "Manage",
+    url: "/manage",
     icon: Settings2,
     items: [
       {
-        title: "Home",
-        url: "/settings",
+        title: "Organization",
+        url: "/manage/organization",
+      },
+      {
+        title: "ART",
+        url: "/manage/art",
+      },
+      {
+        title: "Team",
+        url: "/manage/team",
       },
     ],
   },

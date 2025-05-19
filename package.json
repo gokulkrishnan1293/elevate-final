@@ -20,6 +20,7 @@
     "@react-three/fiber": "^9.1.2",
     "@tabler/icons-react": "^3.31.0",
     "@tailwindcss/cli": "^4.1.7",
+    "@tanstack/react-table": "^8.21.3",
     "@tsparticles/engine": "^3.8.1",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.8.1",

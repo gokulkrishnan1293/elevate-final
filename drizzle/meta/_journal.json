@@ -15,6 +15,34 @@
       "when": 1747643743038,
       "tag": "0001_typical_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747648637537,
+      "tag": "0002_yummy_killmonger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1747649047376,
+      "tag": "0003_nostalgic_major_mapleleaf",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1747655675456,
+      "tag": "0004_closed_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1747655834980,
+      "tag": "0005_condemned_fenris",
+      "breakpoints": true
     }
   ]
 }
