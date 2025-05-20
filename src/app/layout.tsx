@@ -7,6 +7,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import AuthProvider from "@/features/authentication/provider/AuthProvider";
+import { Toaster } from "@/components/ui/sonner"; // Import Toaster
 
 export const metadata: Metadata = {
   title: "Elevate",
@@ -38,6 +39,7 @@ export default function RootLayout({
               <main>{children}</main>
             </SidebarInset>
           </SidebarProvider>
+          <Toaster richColors position="top-right" />
         </AuthProvider>
       </body>
     </html>

@@ -2,35 +2,26 @@
 
 import { db } from "@/db";
 import { organizations } from "@/db/schema/organization";
-import { eq, asc } from "drizzle-orm"; // Added asc for ordering
-import { createInsertSchema, createSelectSchema } from "drizzle-zod"; // Added createSelectSchema
-import { z } from "zod";
-
-// Schema for inserting a new organization
-const insertOrganizationSchema = createInsertSchema(organizations, {
-  organizationKey: (fieldSchema) => fieldSchema.optional(),
-  createdAt: (fieldSchema) => fieldSchema.optional(),
-  updatedAt: (fieldSchema) => fieldSchema.optional(),
-});
-export type CreateOrganizationInput = z.infer<typeof insertOrganizationSchema>;
-
-// Schema for selecting an Organization (can be used for return types)
-const selectOrganizationSchema = createSelectSchema(organizations);
-export type OrganizationOutput = z.infer<typeof selectOrganizationSchema>;
-
-// Schema for updating an existing organization (all fields optional)
-const updateOrganizationSchema = insertOrganizationSchema.partial();
-export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
+import { employees, employeeOrg } from "@/db/schema/employee"; // Import employee schemas
+import { eq, asc, and, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { getActorIdFromToken } from "@/lib/okta";
+import {
+  CreateOrganizationInput,
+  UpdateOrganizationInput,
+  DeleteOrganizationInput,
+  OrganizationOutput,
+} from "@/lib/schemas/organization"; // Import schemas and types
 
 /**
  * Creates a new organization.
- * @param data - The data for the new organization.
- *               Requires 'organizationName'. 'createdById' is optional.
+ * @param data - The data for the new organization, including organizationName and accessToken.
  * @returns An object with success status, message, and data (the created organization) or error.
  */
 export async function createOrganization(data: CreateOrganizationInput) {
-  if (!data.organizationName) {
-    return { success: false, message: "Organization name is required." };
+  const actorEmployeeKey = await getActorIdFromToken(data.accessToken);
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
   }
 
   try {
@@ -51,7 +42,10 @@ export async function createOrganization(data: CreateOrganizationInput) {
       .insert(organizations)
       .values({
         organizationName: data.organizationName,
-        createdById: data.createdById,
+        createdById: actorEmployeeKey,
+        updatedById: actorEmployeeKey,
+        createdAt: new Date(), 
+        updatedAt: new Date(),
       })
       .returning();
 
@@ -88,15 +82,22 @@ export async function createOrganization(data: CreateOrganizationInput) {
 /**
  * Updates an existing organization.
  * @param organizationKey - The key of the organization to update.
- * @param data - The data to update. Can include 'organizationName' and/or 'updatedById'.
+ * @param data - The data to update, including accessToken and optional organizationName.
  * @returns An object with success status, message, and data (the updated organization) or error.
  */
 export async function updateOrganization(
   organizationKey: number,
   data: UpdateOrganizationInput
 ) {
-  if (Object.keys(data).length === 0) {
-    return { success: false, message: "No data provided for update." };
+  const { accessToken, ...updatePayloadData } = data;
+
+  if (Object.keys(updatePayloadData).length === 0) {
+    return { success: false, message: "No fields provided for update." };
+  }
+
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
   }
 
   try {
@@ -135,9 +136,10 @@ export async function updateOrganization(
     }
 
     const updatePayload: Partial<typeof organizations.$inferInsert> = {
-      ...data,
+      ...updatePayloadData,
+      updatedById: actorEmployeeKey,
+      updatedAt: new Date(),
     };
-    updatePayload.updatedAt = new Date();
 
     const updatedOrg = await db
       .update(organizations)
@@ -180,10 +182,25 @@ export async function updateOrganization(
 /**
  * Deletes an organization.
  * @param organizationKey - The key of the organization to delete.
+ * @param accessToken - The access token of the user performing the action.
  * @returns An object with success status and message or error.
  */
-export async function deleteOrganization(organizationKey: number) {
+
+// DeleteOrganizationInput type is imported from schemas
+
+export async function deleteOrganization(data: DeleteOrganizationInput) {
+  const { organizationKey, accessToken } = data;
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
+
+  if (!actorEmployeeKey) {
+    // Potentially log: console.warn(`Unauthorized delete attempt for org ${organizationKey} by unverified user.`);
+    return { success: false, message: "Invalid access token or actor not found." };
+  }
+  // Log actor performing delete for audit purposes if needed:
+  // console.log(`Organization ${organizationKey} deletion initiated by actor ID: ${actorEmployeeKey}`);
+
   try {
+    // Check if organization exists
     const existingOrg = await db
       .select({ organizationKey: organizations.organizationKey })
       .from(organizations)
@@ -194,19 +211,30 @@ export async function deleteOrganization(organizationKey: number) {
       return { success: false, message: "Organization not found." };
     }
 
-    const deletedOrg = await db
-      .delete(organizations)
-      .where(eq(organizations.organizationKey, organizationKey))
-      .returning({ deletedKey: organizations.organizationKey });
+    // Begin a transaction to ensure atomicity
+    await db.transaction(async (tx) => {
+      // Step 1: Delete associated records from employee_org
+      await tx
+        .delete(employeeOrg)
+        .where(eq(employeeOrg.organizationKey, organizationKey));
 
-    if (deletedOrg.length > 0 && deletedOrg[0].deletedKey === organizationKey) {
-      return { success: true, message: "Organization deleted successfully." };
-    } else {
-      return {
-        success: false,
-        message: "Failed to delete organization or organization not found.",
-      };
-    }
+      // Step 2: Delete associated records from other tables if necessary (e.g., arts if they have an org link with "no action")
+      // For now, only employee_org is mentioned in the error.
+
+      // Step 3: Delete the organization itself
+      const deletedOrgResult = await tx
+        .delete(organizations)
+        .where(eq(organizations.organizationKey, organizationKey))
+        .returning({ deletedKey: organizations.organizationKey });
+      
+      if (deletedOrgResult.length === 0) {
+        // This should not happen if existingOrg check passed, but as a safeguard
+        throw new Error("Failed to delete organization after clearing dependencies.");
+      }
+    });
+
+    return { success: true, message: "Organization and associated links deleted successfully." };
+
   } catch (error) {
     console.error("Error deleting organization:", error);
     const errorMessage =
@@ -257,15 +285,47 @@ export async function getOrganizationByKey(organizationKey: number) {
  */
 export async function getOrganizations() {
   try {
+    const creator = alias(employees, "creator");
+    const updater = alias(employees, "updater");
+    const owner = alias(employees, "owner");
+
     const result = await db
-      .select()
+      .select({
+        organizationKey: organizations.organizationKey,
+        organizationName: organizations.organizationName,
+        createdAt: organizations.createdAt,
+        updatedAt: organizations.updatedAt,
+        createdById: organizations.createdById,
+        updatedById: organizations.updatedById,
+        createdByName: sql<string>`${creator.firstName} || ' ' || ${creator.lastName}`,
+        createdByEmail: creator.email,
+        updatedByName: sql<string>`${updater.firstName} || ' ' || ${updater.lastName}`,
+        updatedByEmail: updater.email,
+        ownerName: sql<string>`${owner.firstName} || ' ' || ${owner.lastName}`,
+        ownerEmail: owner.email,
+        ownerAvatar: owner.profilePhoto,
+        ownerEmployeeKey: owner.employeeKey,
+      })
       .from(organizations)
+      .leftJoin(creator, eq(organizations.createdById, creator.employeeKey))
+      .leftJoin(updater, eq(organizations.updatedById, updater.employeeKey))
+      .leftJoin(employeeOrg, eq(organizations.organizationKey, employeeOrg.organizationKey))
+      .leftJoin(owner, 
+                  and(
+                    eq(employeeOrg.employeeKey, owner.employeeKey),
+                    eq(employeeOrg.orgOwner, true) // Ensure we only join with actual owners
+                  )
+      )
       .orderBy(asc(organizations.organizationName));
+
+    // The `sql` template for concatenation should work.
+    // Drizzle should map these selected fields to a flat object per row.
+    // The OrganizationOutput Zod schema will then validate this structure.
 
     return {
       success: true,
       message: "Organizations retrieved successfully.",
-      data: result as OrganizationOutput[],
+      data: result as OrganizationOutput[], // Cast to the Zod inferred type
     };
   } catch (error) {
     console.error("Error retrieving organizations:", error);
