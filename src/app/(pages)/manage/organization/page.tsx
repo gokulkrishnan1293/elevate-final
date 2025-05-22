@@ -17,14 +17,22 @@ import { OrganizationDataTable } from "@/features/manage/organization/Organizati
 
 export default function Page() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      {/* <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-        <div className="aspect-video rounded-xl bg-muted/50" />
-        <div className="aspect-video rounded-xl bg-muted/50" />
-        <div className="aspect-video rounded-xl bg-muted/50" />
+    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+                  <BreadcrumbPage>Manage</BreadcrumbPage>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Organization</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <div className="flex-1 rounded-lg  p-0 md:p-0">
+        {/* The ARTDataTable itself has container mx-auto py-10, so no extra padding needed here unless desired */}
+        <OrganizationDataTable />
       </div>
-      <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" /> */}
-      <OrganizationDataTable />
     </div>
   );
 }

@@ -73,14 +73,14 @@ export function DataTable<TData, TValue>({
 
 
   return (
-    <div className="space-y-0"> {/* Removed space-y-4 for tighter integration */}
+    <div className="space-y-0 "> {/* Removed space-y-4 for tighter integration */}
       <DataTableToolbar 
         table={table} 
         columns={columns}
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
       />
-      <div className="rounded-3xl border">
+      <div className="rounded-3xl">
         <div className="relative h-full rounded-2xl border p-2 md:rounded-3xl md:p-3">
         <GlowingEffect
           blur={0}

@@ -30,7 +30,7 @@ export async function getActorIdFromToken(accessToken: string): Promise<number |
     const audience = 'api://default';
     const jwt = await oktaJwtVerifier.verifyAccessToken(accessToken, audience); 
     
-    const userEmail = jwt.claims.sub; // Assuming 'sub' claim contains the email. Verify this for your Okta setup.
+    const userEmail = jwt.claims?.email || jwt.claims.sub; // Assuming 'sub' claim contains the email. Verify this for your Okta setup.
     
     if (typeof userEmail !== 'string' || !userEmail) {
       console.error("Email (sub claim) not found or invalid in token.");

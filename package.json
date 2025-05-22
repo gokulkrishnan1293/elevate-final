@@ -6,7 +6,11 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:orgs": "tsx scripts/seed-organizations.ts",
+    "clean:orgs": "tsx scripts/clean-organizations.ts",
+    "seed:employees": "tsx scripts/seed-employees.ts",
+    "clean:employees": "tsx scripts/clean-employees.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

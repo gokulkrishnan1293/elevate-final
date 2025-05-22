@@ -117,7 +117,7 @@ export function DataTableToolbar<TData>({
   return (
     <div className="flex items-center justify-between p-4 bg-card">
       <div className="flex flex-1 items-center space-x-2">
-        <div className="relative">
+        <div className="relative border border-black rounded-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search data table..."

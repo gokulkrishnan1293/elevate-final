@@ -243,20 +243,23 @@ export async function setOrganizationOwner(data: SetOrganizationOwnersInput) { /
 }
 
 
-// Schema for setting/unsetting ART owner
-const setArtOwnerSchema = z.object({
-  employeeKey: z.number(),
+// Schema for setting/updating ART owners (supports multiple owners)
+const setArtOwnersSchema = z.object({
   artKey: z.number(),
-  isOwner: z.boolean(),
-  accessToken: z.string(), // Changed from actorEmployeeKey
+  ownerEmployeeKeys: z.array(z.number()), // Array of employeeKeys for the new set of owners
+  accessToken: z.string(),
 });
-export type SetArtOwnerInput = z.infer<typeof setArtOwnerSchema>;
+export type SetArtOwnersInput = z.infer<typeof setArtOwnersSchema>; // Renamed type
 
 /**
- * Associates or disassociates an employee as an ART owner.
+ * Sets or updates the owners for an ART.
+ * This will replace the current set of owners with the provided list.
+ * @param data - Input data including artKey, an array of ownerEmployeeKeys, and accessToken.
+ * @returns An object with success status and message.
  */
-export async function setArtOwner(data: SetArtOwnerInput) {
-  const { employeeKey, artKey, isOwner, accessToken } = data;
+export async function setArtOwner(data: SetArtOwnersInput) { // Function name kept as setArtOwner for consistency if preferred, or could be setArtOwners
+  const { artKey, ownerEmployeeKeys, accessToken } = data;
+
   const actorEmployeeKey = await getActorIdFromToken(accessToken);
 
   if (!actorEmployeeKey) {
@@ -264,108 +267,178 @@ export async function setArtOwner(data: SetArtOwnerInput) {
   }
 
   try {
-    const existingLink = await db
-      .select()
-      .from(employeeArt)
-      .where(
-        and(eq(employeeArt.employeeKey, employeeKey), eq(employeeArt.artKey, artKey))
-      )
-      .limit(1);
+    await db.transaction(async (tx) => {
+      // 1. Get current owners for the ART
+      const currentOwnerLinks = await tx
+        .select({ employeeKey: employeeArt.employeeKey })
+        .from(employeeArt)
+        .where(and(eq(employeeArt.artKey, artKey), eq(employeeArt.artOwner, true)));
+      
+      const currentOwnerIds = currentOwnerLinks.map(link => link.employeeKey);
 
-    if (existingLink.length > 0) {
-      if (existingLink[0].artOwner === isOwner) {
-        return { success: true, message: `Employee is already ${isOwner ? 'an owner' : 'not an owner'} of this ART.` };
+      // 2. Determine owners to remove
+      const ownersToRemove = currentOwnerIds.filter(id => !ownerEmployeeKeys.includes(id));
+      if (ownersToRemove.length > 0) {
+        await tx
+          .update(employeeArt)
+          .set({
+            artOwner: false,
+            updatedById: actorEmployeeKey,
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(employeeArt.artKey, artKey),
+            inArray(employeeArt.employeeKey, ownersToRemove)
+          ));
       }
-      await db
-        .update(employeeArt)
-        .set({
-          artOwner: isOwner,
-          updatedById: actorEmployeeKey,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(eq(employeeArt.employeeKey, employeeKey), eq(employeeArt.artKey, artKey))
-        );
-    } else {
-      if (isOwner) {
-        await db.insert(employeeArt).values({
-          employeeKey,
-          artKey,
-          artOwner: true,
-          createdById: actorEmployeeKey,
-          updatedById: actorEmployeeKey,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      } else {
-        return { success: true, message: "Employee was not an owner of this ART, no change made." };
+
+      // 3. Determine owners to add or update to artOwner = true
+      for (const ownerKey of ownerEmployeeKeys) {
+        const existingLink = await tx
+          .select()
+          .from(employeeArt)
+          .where(and(eq(employeeArt.employeeKey, ownerKey), eq(employeeArt.artKey, artKey)))
+          .limit(1);
+
+        if (existingLink.length > 0) {
+          if (!existingLink[0].artOwner) {
+            await tx
+              .update(employeeArt)
+              .set({
+                artOwner: true,
+                updatedById: actorEmployeeKey,
+                updatedAt: new Date(),
+              })
+              .where(and(
+                eq(employeeArt.employeeKey, ownerKey),
+                eq(employeeArt.artKey, artKey)
+              ));
+          }
+        } else {
+          await tx.insert(employeeArt).values({
+            employeeKey: ownerKey,
+            artKey,
+            artOwner: true,
+            createdById: actorEmployeeKey,
+            updatedById: actorEmployeeKey,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
       }
-    }
-    return { success: true, message: `ART ownership ${isOwner ? 'assigned' : 'updated'} successfully.` };
+    });
+
+    return { success: true, message: "ART owners updated successfully." };
   } catch (error) {
-    console.error("Error setting ART owner:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    return { success: false, message: `Database operation failed: ${errorMessage}` };
+    console.error("Error setting ART owners:", error); // Updated log message
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred.";
+    return {
+      success: false,
+      message: `Database operation failed: ${errorMessage}`,
+    };
   }
 }
 
-// Schema for setting/unsetting team owner
-const setTeamOwnerSchema = z.object({
-  employeeKey: z.number(),
+// Schema for setting/updating team owners (supports multiple owners)
+const setTeamOwnersSchema = z.object({
   teamKey: z.number(),
-  isOwner: z.boolean(),
-  accessToken: z.string(), // Changed from actorEmployeeKey
+  ownerEmployeeKeys: z.array(z.number()), // Array of employeeKeys for the new set of owners
+  accessToken: z.string(),
 });
-export type SetTeamOwnerInput = z.infer<typeof setTeamOwnerSchema>;
+export type SetTeamOwnersInput = z.infer<typeof setTeamOwnersSchema>; // Renamed type
 
 /**
- * Associates or disassociates an employee as a team owner for all their roles in that team.
+ * Sets or updates the owners for a team.
+ * This will replace the current set of owners with the provided list.
+ * An employee must already be part of the team (i.e., have a role) to be made an owner.
+ * @param data - Input data including teamKey, an array of ownerEmployeeKeys, and accessToken.
+ * @returns An object with success status and message.
  */
-export async function setTeamOwner(data: SetTeamOwnerInput) {
-  const { employeeKey, teamKey, isOwner, accessToken } = data;
+export async function setTeamOwner(data: SetTeamOwnersInput) { // Function name kept as setTeamOwner
+  const { teamKey, ownerEmployeeKeys, accessToken } = data;
   const actorEmployeeKey = await getActorIdFromToken(accessToken);
 
   if (!actorEmployeeKey) {
     return { success: false, message: "Invalid access token or actor not found." };
   }
 
+  let nonMemberOwnerKeys: number[] = [];
+
   try {
-    // A more granular approach would require specifying the jobTitle.
-    const existingLinks = await db
-      .select()
-      .from(employeeTeam)
-      .where(
-        and(eq(employeeTeam.employeeKey, employeeKey), eq(employeeTeam.teamKey, teamKey))
-      );
+    await db.transaction(async (tx) => {
+      // 1. Get current distinct employee keys who are owners of the team
+      const currentOwnerLinks = await tx
+        .selectDistinct({ employeeKey: employeeTeam.employeeKey })
+        .from(employeeTeam)
+        .where(and(eq(employeeTeam.teamKey, teamKey), eq(employeeTeam.teamOwner, true)));
+      
+      const currentOwnerIds = currentOwnerLinks.map(link => link.employeeKey);
 
-    if (existingLinks.length === 0 && isOwner) {
-      // Cannot make someone an owner of a team they are not part of.
-      // They first need a role (jobTitle) in that team.
-      // This action could be extended to also add them to the team with a default job title if isOwner is true.
-      return { success: false, message: "Employee is not part of this team. Add them to the team first with a job title." };
-    }
-    
-    if (existingLinks.length === 0 && !isOwner) {
-         return { success: true, message: "Employee was not part of this team, no change made." };
-    }
+      // 2. Determine owners to remove (demote)
+      // These are employees currently marked as owners but not in the new ownerEmployeeKeys list.
+      // For these employees, set teamOwner = false for all their roles in this team.
+      const ownersToDemote = currentOwnerIds.filter(id => !ownerEmployeeKeys.includes(id));
+      if (ownersToDemote.length > 0) {
+        await tx
+          .update(employeeTeam)
+          .set({
+            teamOwner: false,
+            updatedById: actorEmployeeKey,
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(employeeTeam.teamKey, teamKey),
+            inArray(employeeTeam.employeeKey, ownersToDemote)
+          ));
+      }
 
-    // Update all existing links for this employee in this team
-    await db
-      .update(employeeTeam)
-      .set({
-        teamOwner: isOwner,
-        updatedById: actorEmployeeKey,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(eq(employeeTeam.employeeKey, employeeKey), eq(employeeTeam.teamKey, teamKey))
-      );
-    
-    return { success: true, message: `Team ownership for employee in team ${isOwner ? 'assigned' : 'updated'} successfully for all roles.` };
+      // 3. Determine owners to add or update to teamOwner = true
+      // These are employees in the ownerEmployeeKeys list.
+      // For each, set teamOwner = true for all their existing roles in this team.
+      // If an employee in ownerEmployeeKeys is not part of the team, they cannot be made an owner.
+      for (const ownerKey of ownerEmployeeKeys) {
+        // Check if the employee is part of the team (has any role)
+        const existingRoles = await tx
+          .select({ employeeKey: employeeTeam.employeeKey })
+          .from(employeeTeam)
+          .where(and(eq(employeeTeam.employeeKey, ownerKey), eq(employeeTeam.teamKey, teamKey)))
+          .limit(1); // Just need to know if they exist in the team
+
+        if (existingRoles.length > 0) {
+          // Employee is in the team, ensure all their roles in this team are marked as owner
+          await tx
+            .update(employeeTeam)
+            .set({
+              teamOwner: true,
+              updatedById: actorEmployeeKey,
+              updatedAt: new Date(),
+            })
+            .where(and(
+              eq(employeeTeam.employeeKey, ownerKey),
+              eq(employeeTeam.teamKey, teamKey)
+            ));
+        } else {
+          // Employee is not in the team, cannot make them an owner.
+          nonMemberOwnerKeys.push(ownerKey);
+        }
+      }
+    });
+
+    let message = "Team owners updated successfully.";
+    if (nonMemberOwnerKeys.length > 0) {
+      message += ` The following employees could not be set as owners because they are not members of the team: ${nonMemberOwnerKeys.join(', ')}.`;
+    }
+    return { success: true, message };
+
   } catch (error) {
-    console.error("Error setting team owner:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-    return { success: false, message: `Database operation failed: ${errorMessage}` };
+    console.error("Error setting team owners:", error); // Updated log message
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred.";
+    return {
+      success: false,
+      message: `Database operation failed: ${errorMessage}`,
+    };
   }
 }
 
