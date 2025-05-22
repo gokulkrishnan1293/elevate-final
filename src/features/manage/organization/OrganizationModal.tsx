@@ -48,13 +48,20 @@ export function OrganizationModal({
     }
 
     try {
-      const ownerKey = parseInt(formData.ownerEmployeeKey, 10);
-      if (isNaN(ownerKey)) {
-        // setError("Invalid owner selected."); // Replaced by toast
-        toast.error("Invalid owner selected.");
+      // Convert ownerEmployeeKeys from string array to number array
+      const ownerKeysAsNumbers = formData.ownerEmployeeKeys.map(key => parseInt(key, 10)).filter(key => !isNaN(key));
+      
+      if (ownerKeysAsNumbers.length !== formData.ownerEmployeeKeys.length) {
+        toast.error("Some selected owner IDs are invalid.");
         setIsLoading(false);
         return;
       }
+      if (ownerKeysAsNumbers.length === 0 && mode === "create") { // For create, at least one owner is expected by form schema
+        toast.error("At least one organization owner must be selected.");
+        setIsLoading(false);
+        return;
+      }
+
 
       if (mode === "create") {
         const createResult = await createOrganization({
@@ -65,15 +72,14 @@ export function OrganizationModal({
         
 
         if (createResult.success && createResult.data) {
-          // Now set the owner using employeeOrg link
+          // Now set the owners using employeeOrg link
           const setOwnerResult = await setOrganizationOwner({
-            employeeKey: ownerKey,
             organizationKey: createResult.data.organizationKey,
-            isOwner: true,
+            ownerEmployeeKeys: ownerKeysAsNumbers,
             accessToken: accessToken,
           });
           if (setOwnerResult.success) {
-            toast.success("Organization created successfully!");
+            toast.success("Organization created and owners assigned successfully!");
             onSuccess();
           } else {
             // Org created, but owner setting failed. This is a partial success/failure state.
@@ -96,45 +102,22 @@ export function OrganizationModal({
         );
 
         if (updateResult.success && updateResult.data) {
-          // Check if owner changed. Current owner is organizationData.ownerEmployeeKey
-          // New selected owner is ownerKey from formData
-          if (organizationData.ownerEmployeeKey !== ownerKey) {
-            // If there was an old owner, and they are different from new owner, unset old owner (optional, depends on logic)
-            // For simplicity, we just set the new owner. If an org can only have one owner via employeeOrg,
-            // the setOrganizationOwner might need to handle unsetting previous owner or be an upsert.
-            // Current setOrganizationOwner updates or inserts.
-            
-            // If previous owner existed, and we want to ensure they are no longer the owner explicitly
-            if (organizationData.ownerEmployeeKey && organizationData.ownerEmployeeKey !== ownerKey) {
-                 await setOrganizationOwner({
-                    employeeKey: organizationData.ownerEmployeeKey,
-                    organizationKey: organizationData.organizationKey,
-                    isOwner: false, // Unset old owner
-                    accessToken: accessToken,
-                });
-            }
+          // For edit mode, we always call setOrganizationOwner with the new list of owners.
+          // The server action `setOrganizationOwner` is responsible for figuring out diffs (add/remove).
+          const setOwnerResult = await setOrganizationOwner({
+            organizationKey: organizationData.organizationKey,
+            ownerEmployeeKeys: ownerKeysAsNumbers, // Pass the full new list
+            accessToken: accessToken,
+          });
 
-            const setOwnerResult = await setOrganizationOwner({
-              employeeKey: ownerKey,
-              organizationKey: organizationData.organizationKey,
-              isOwner: true,
-              accessToken: accessToken,
-            });
-
-            if (setOwnerResult.success) {
-              toast.success("Organization updated and owner assigned successfully!");
-              onSuccess();
-            } else {
-              console.error("Org updated, but failed to update owner:", setOwnerResult.message);
-              // setError(`Organization updated, but failed to update owner: ${setOwnerResult.message}`); // Replaced by toast
-              toast.error(`Organization updated, but failed to update owner: ${setOwnerResult.message}`);
-            }
+          if (setOwnerResult.success) {
+            toast.success("Organization and owners updated successfully!");
+            onSuccess();
           } else {
-            toast.success("Organization updated successfully!");
-            onSuccess(); // Owner didn't change, just call success
+            console.error("Org updated, but failed to update owner(s):", setOwnerResult.message);
+            toast.error(`Organization updated, but failed to update owner(s): ${setOwnerResult.message}`);
           }
         } else {
-          // setError(updateResult.message || "Failed to update organization."); // Replaced by toast
           toast.error(updateResult.message || "Failed to update organization.");
         }
       }

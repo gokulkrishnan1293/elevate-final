@@ -6,14 +6,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { getEmployees, EmployeeOutput } from "@/actions/employee";
-import { OrganizationOutput } from "@/lib/schemas/organization"; // Updated import path
+import { OrganizationOutput } from "@/lib/schemas/organization";
 import { FormFieldInput } from "@/components/form/FormFieldInput";
-import { FormFieldSelect } from "@/components/form/FormFieldSelect";
+// import { FormFieldSelect } from "@/components/form/FormFieldSelect"; // No longer used
+import { MultiSelectFormField } from "@/components/form/MultiSelectFormField"; // Import MultiSelect
 
 // Zod Schema for form validation
 const organizationFormSchema = z.object({
   organizationName: z.string().min(1, "Organization name is required."),
-  ownerEmployeeKey: z.string().min(1, "Organization owner is required."), // Store as string due to Select component value
+  ownerEmployeeKeys: z.array(z.string()).min(1, "At least one organization owner is required."), // Changed to array
 });
 
 export type OrganizationFormData = z.infer<typeof organizationFormSchema>;
@@ -41,7 +42,7 @@ export function OrganizationForm({
     resolver: zodResolver(organizationFormSchema),
     defaultValues: {
       organizationName: defaultValues?.organizationName || "",
-      ownerEmployeeKey: defaultValues?.ownerEmployeeKey?.toString() || "",
+      ownerEmployeeKeys: defaultValues?.owners?.map(owner => owner.ownerEmployeeKey!.toString()) || [],
     },
   });
 
@@ -70,12 +71,12 @@ export function OrganizationForm({
     if (defaultValues) {
       reset({
         organizationName: defaultValues.organizationName || "",
-        ownerEmployeeKey: defaultValues.ownerEmployeeKey?.toString() || "",
+        ownerEmployeeKeys: defaultValues.owners?.map(owner => owner.ownerEmployeeKey!.toString()) || [],
       });
     } else {
       reset({
         organizationName: "",
-        ownerEmployeeKey: "",
+        ownerEmployeeKeys: [],
       });
     }
   }, [defaultValues, reset]);
@@ -85,12 +86,12 @@ export function OrganizationForm({
   };
 
   const employeeOptions = employees.map((employee) => ({
-    value: employee.employeeKey.toString(),
-    label: `${employee.firstName} ${employee.lastName} (${employee.email})`,
+    value: employee.employeeKey.toString(), // Ensure value is string
+    label: `${employee.firstName} ${employee.lastName}`,
   }));
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 overflow-hidden w-full"> {/* Added w-full */}
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 w-full">
       <FormFieldInput<OrganizationFormData>
         control={control}
         name="organizationName"
@@ -100,18 +101,14 @@ export function OrganizationForm({
         containerClassName="space-y-1"
       />
 
-      <FormFieldSelect<OrganizationFormData>
+      <MultiSelectFormField<OrganizationFormData>
         control={control}
-        name="ownerEmployeeKey"
-        label="Organization Owner"
-        placeholder="Select an owner"
+        name="ownerEmployeeKeys"
+        label="Organization Owners"
+        placeholder="Select owners..."
         options={employeeOptions}
-        errors={errors}
-        isLoading={employeesLoading}
-        disabled={isLoading}
-        loadingMessage="Loading employees..."
-        noOptionsMessage="No employees found"
-        containerClassName="space-y-1 w-full overflow-hidden text-ellipsis whitespace-nowrap" // Added overflow handling
+        disabled={isLoading || employeesLoading} // Combine loading states for disabled prop
+        modalPopover={true}
       />
 
       <Button type="submit" disabled={isLoading} className="w-full">

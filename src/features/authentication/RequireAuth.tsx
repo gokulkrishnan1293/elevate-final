@@ -28,8 +28,8 @@ const RequireAuth: React.FC<AuthProviderProps> = ({ children }) => {
           if (user) {
             const employeeData: EmployeeInput = {
               lanId: String(user?.lanID || user?.email),
-              firstName: String(user?.firstName || user?.email),
-              lastName: String(user?.lastName || user?.email),
+              firstName: String(user?.firstName || user?.given_name || user?.email),
+              lastName: String(user?.lastName || user?.family_name || user?.email),
               email: String(user?.email || "DUMMY@CIGNA.COM"),
               profilePhoto: undefined,
               cignaManagerId: undefined,

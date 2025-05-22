@@ -24,10 +24,12 @@ export const organizationOutputSchema = createSelectSchema(organizations).extend
   createdByEmail: z.string().email().nullable().optional(),
   updatedByName: z.string().nullable().optional(),
   updatedByEmail: z.string().email().nullable().optional(),
-  ownerName: z.string().nullable().optional(),
-  ownerEmail: z.string().email().nullable().optional(),
-  ownerAvatar: z.string().nullable().optional(),
-  ownerEmployeeKey: z.number().nullable().optional(),
+  owners: z.array(z.object({
+    ownerName: z.string().nullable().optional(),
+    ownerEmail: z.string().email().nullable().optional(),
+    ownerAvatar: z.string().nullable().optional(),
+    ownerEmployeeKey: z.number().nullable().optional(),
+  })).optional(),
 });
 export type OrganizationOutput = z.infer<typeof organizationOutputSchema>;
 

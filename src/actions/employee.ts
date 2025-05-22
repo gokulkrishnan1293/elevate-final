@@ -5,7 +5,7 @@ import { employees, employeeOrg, employeeArt, employeeTeam } from "@/db/schema/e
 import { organizations } from "@/db/schema/organization";
 import { arts } from "@/db/schema/ART";
 import { teams } from "@/db/schema/team";
-import { eq, asc, and, desc, ne } from "drizzle-orm";
+import { eq, asc, and, desc, ne, sql, inArray } from "drizzle-orm"; // Added sql and inArray
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
@@ -142,78 +142,95 @@ export async function updateEmployeeDetails(data: UpdateEmployeeCoreInput) {
 
 // --- Ownership Association Schemas and Actions ---
 
-// Schema for setting/unsetting organization owner
-const setOrgOwnerSchema = z.object({
-  employeeKey: z.number(), // The employee whose ownership is being changed
+// Schema for setting/updating organization owners (supports multiple owners)
+const setOrganizationOwnersSchema = z.object({
   organizationKey: z.number(),
-  isOwner: z.boolean(),
-  accessToken: z.string(), // Okta access token of the user performing the action
+  ownerEmployeeKeys: z.array(z.number()), // Array of employeeKeys for the new set of owners
+  accessToken: z.string(),
 });
-export type SetOrgOwnerInput = z.infer<typeof setOrgOwnerSchema>;
+export type SetOrganizationOwnersInput = z.infer<typeof setOrganizationOwnersSchema>;
 
 /**
- * Associates or disassociates an employee as an organization owner.
- * @param data - Input data including employeeKey, organizationKey, isOwner flag, and actorEmployeeKey.
+ * Sets or updates the owners for an organization.
+ * This will replace the current set of owners with the provided list.
+ * @param data - Input data including organizationKey, an array of ownerEmployeeKeys, and accessToken.
  * @returns An object with success status and message.
  */
-export async function setOrganizationOwner(data: SetOrgOwnerInput) {
-  const { employeeKey, organizationKey, isOwner, accessToken } = data;
+export async function setOrganizationOwner(data: SetOrganizationOwnersInput) { // Renamed for clarity if needed, but keeping for now
+  const { organizationKey, ownerEmployeeKeys, accessToken } = data;
 
   const actorEmployeeKey = await getActorIdFromToken(accessToken);
 
   if (!actorEmployeeKey) {
-    // getActorIdFromToken will log specific errors, return a generic one here or based on needs
     return { success: false, message: "Invalid access token or actor not found." };
   }
 
   try {
-    const existingLink = await db
-      .select()
-      .from(employeeOrg)
-      .where(
-        and(
-          eq(employeeOrg.employeeKey, employeeKey),
-          eq(employeeOrg.organizationKey, organizationKey)
-        )
-      )
-      .limit(1);
+    await db.transaction(async (tx) => {
+      // 1. Get current owners for the organization
+      const currentOwnerLinks = await tx
+        .select({ employeeKey: employeeOrg.employeeKey })
+        .from(employeeOrg)
+        .where(and(eq(employeeOrg.organizationKey, organizationKey), eq(employeeOrg.orgOwner, true)));
+      
+      const currentOwnerIds = currentOwnerLinks.map(link => link.employeeKey);
 
-    if (existingLink.length > 0) {
-      // Update existing link
-      if (existingLink[0].orgOwner === isOwner) {
-        return { success: true, message: `Employee is already ${isOwner ? 'an owner' : 'not an owner'} of this organization.` };
+      // 2. Determine owners to remove
+      // Owners who are in currentOwnerIds but not in new ownerEmployeeKeys
+      const ownersToRemove = currentOwnerIds.filter(id => !ownerEmployeeKeys.includes(id));
+      if (ownersToRemove.length > 0) {
+        await tx
+          .update(employeeOrg)
+          .set({
+            orgOwner: false,
+            updatedById: actorEmployeeKey,
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(employeeOrg.organizationKey, organizationKey),
+            inArray(employeeOrg.employeeKey, ownersToRemove) // Use inArray
+          ));
       }
-      await db
-        .update(employeeOrg)
-        .set({
-          orgOwner: isOwner,
-          updatedById: actorEmployeeKey, // Use actorEmployeeKey
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(employeeOrg.employeeKey, employeeKey),
-            eq(employeeOrg.organizationKey, organizationKey)
-          )
-        );
-    } else {
-      // Insert new link only if trying to set as owner
-      if (isOwner) {
-        await db.insert(employeeOrg).values({
-          employeeKey,
-          organizationKey,
-          orgOwner: true,
-          createdById: actorEmployeeKey, // Use actorEmployeeKey
-          updatedById: actorEmployeeKey, // Use actorEmployeeKey
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      } else {
-        // Trying to set isOwner=false for a non-existing link, which is a no-op.
-        return { success: true, message: "Employee was not an owner of this organization, no change made." };
+
+      // 3. Determine owners to add or update to orgOwner = true
+      for (const ownerKey of ownerEmployeeKeys) {
+        const existingLink = await tx
+          .select()
+          .from(employeeOrg)
+          .where(and(eq(employeeOrg.employeeKey, ownerKey), eq(employeeOrg.organizationKey, organizationKey)))
+          .limit(1);
+
+        if (existingLink.length > 0) {
+          // If link exists, update it to be an owner if it's not already
+          if (!existingLink[0].orgOwner) {
+            await tx
+              .update(employeeOrg)
+              .set({
+                orgOwner: true,
+                updatedById: actorEmployeeKey,
+                updatedAt: new Date(),
+              })
+              .where(and( // Use composite PK for update
+                eq(employeeOrg.employeeKey, ownerKey),
+                eq(employeeOrg.organizationKey, organizationKey)
+              ));
+          }
+        } else {
+          // If link doesn't exist, create it
+          await tx.insert(employeeOrg).values({
+            employeeKey: ownerKey,
+            organizationKey,
+            orgOwner: true,
+            createdById: actorEmployeeKey,
+            updatedById: actorEmployeeKey,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
       }
-    }
-    return { success: true, message: `Organization ownership ${isOwner ? 'assigned' : 'updated'} successfully.` };
+    });
+
+    return { success: true, message: "Organization owners updated successfully." };
   } catch (error) {
     console.error("Error setting organization owner:", error);
     const errorMessage =

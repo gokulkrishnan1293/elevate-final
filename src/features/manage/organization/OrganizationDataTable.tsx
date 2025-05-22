@@ -6,13 +6,18 @@ import { getOrganizations, deleteOrganization } from "@/actions/organization";
 import { OrganizationOutput } from "@/lib/schemas/organization"; // Updated import path
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, FilePenLine, Trash2, PlusCircle } from "lucide-react";
+import {Button as MovingButton} from "@/components/ui/moving-border";
+import { ArrowUpDown, FilePenLine, Trash2, PlusCircle, PlusIcon, PlusCircleIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OrganizationModal } from "./OrganizationModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { useCallback, useMemo } from "react";
 import { useOktaAuth } from "@okta/okta-react"; // Import useOktaAuth
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
 
 // Define a function that returns column definitions
 // Adjusted handleDeleteOrganizationConfirm to accept OrganizationOutput
@@ -22,44 +27,41 @@ const getOrganizationTableColumns = (
 ): ColumnDef<OrganizationOutput>[] => [
   {
     accessorKey: "organizationName",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Organization Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
+    meta: { headerTitle: "Organization Name" }, // Moved headerTitle to meta
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Organization Name" />
+    ),
   },
   {
-    accessorKey: "ownerName",
-    header: "Organization Owner",
+    accessorKey: "owners",
+    meta: { headerTitle: "Organization Owners" }, // Added headerTitle to meta
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Organization Owners" />
+    ),
     cell: ({ row }) => {
-      const ownerName = row.original.ownerName;
-      const ownerAvatar = row.original.ownerAvatar;
-      const initials = ownerName
-        ?.split(" ")
-        .map((n: string) => n[0]) // Added type for n
-        .slice(0, 2)
-        .join("")
-        .toUpperCase() || "O";
+      const owners = row.original.owners;
 
+      if (!owners || owners.length === 0) {
+        return <div>N/A</div>;
+      }
+
+      // Displaying multiple avatars could be complex here.
+      // For now, let's list names and show avatars in a tooltip or a more detailed view if needed.
+      // This example will show the first owner's avatar and a count for others.
+      // A more robust UI might involve a popover or a dedicated component for multiple users.
       return (
-        <div className="flex items-center">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={ownerAvatar || undefined} alt={ownerName || "Owner"} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
+        <div className="flex flex-row  w-full">
+          <AnimatedTooltip owners={owners} />
         </div>
       );
     },
   },
   {
     accessorKey: "updatedByName",
-    header: "Updated By",
+    meta: { headerTitle: "Updated By" }, // Added headerTitle to meta
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Updated By" />
+    ),
     cell: ({ row }) => {
       const updatedByName = row.original.updatedByName;
       return <div>{updatedByName || "N/A"}</div>;
@@ -67,7 +69,10 @@ const getOrganizationTableColumns = (
   },
   {
     accessorKey: "updatedAt",
-    header: "Updated On",
+    meta: { headerTitle: "Updated On" }, // Added headerTitle to meta
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Updated On" />
+    ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("updatedAt"));
       return <div>{date.toLocaleDateString()}</div>;
@@ -107,8 +112,10 @@ export function OrganizationDataTable() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [currentOrganization, setCurrentOrganization] = useState<OrganizationOutput | null>(null);
-  const [organizationToDelete, setOrganizationToDelete] = useState<OrganizationOutput | null>(null);
+  const [currentOrganization, setCurrentOrganization] =
+    useState<OrganizationOutput | null>(null);
+  const [organizationToDelete, setOrganizationToDelete] =
+    useState<OrganizationOutput | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { authState } = useOktaAuth(); // Get authState
 
@@ -123,7 +130,9 @@ export function OrganizationDataTable() {
         setError(result.message || "Failed to fetch organizations");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred."
+      );
     } finally {
       setLoading(false);
     }
@@ -132,22 +141,28 @@ export function OrganizationDataTable() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-  
+
   const handleOpenCreateModal = useCallback(() => {
     setModalMode("create");
     setCurrentOrganization(null);
     setIsModalOpen(true);
   }, []);
 
-  const handleOpenEditModal = useCallback((organization: OrganizationOutput) => {
-    setModalMode("edit");
-    setCurrentOrganization(organization);
-    setIsModalOpen(true);
-  }, []);
+  const handleOpenEditModal = useCallback(
+    (organization: OrganizationOutput) => {
+      setModalMode("edit");
+      setCurrentOrganization(organization);
+      setIsModalOpen(true);
+    },
+    []
+  );
 
-  const handleOpenDeleteConfirm = useCallback((organization: OrganizationOutput) => {
-    setOrganizationToDelete(organization);
-  }, []);
+  const handleOpenDeleteConfirm = useCallback(
+    (organization: OrganizationOutput) => {
+      setOrganizationToDelete(organization);
+    },
+    []
+  );
 
   const performDeleteOrganization = useCallback(async () => {
     if (!organizationToDelete) return;
@@ -168,13 +183,15 @@ export function OrganizationDataTable() {
       });
       if (result.success) {
         // For now, let's try a generic toast if .warning isn't standard
-        toast.warning(`Organization "${organizationToDelete.organizationName}" deleted successfully.`); // Using success as warn might not be standard
+        toast.warning(
+          `Organization "${organizationToDelete.organizationName}" deleted successfully.`
+        ); // Using success as warn might not be standard
         fetchData();
       } else {
         toast.error(`Failed to delete organization: ${result.message}`);
       }
     } catch (e) {
-        toast.error("An unexpected error occurred during deletion.");
+      toast.error("An unexpected error occurred during deletion.");
     } finally {
       setOrganizationToDelete(null);
       setIsDeleting(false);
@@ -182,7 +199,8 @@ export function OrganizationDataTable() {
   }, [organizationToDelete, fetchData]);
 
   const columns = useMemo(
-    () => getOrganizationTableColumns(handleOpenEditModal, handleOpenDeleteConfirm),
+    () =>
+      getOrganizationTableColumns(handleOpenEditModal, handleOpenDeleteConfirm),
     [handleOpenEditModal, handleOpenDeleteConfirm]
   );
 
@@ -197,13 +215,29 @@ export function OrganizationDataTable() {
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Organizations</h1>
-        <Button onClick={handleOpenCreateModal}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Create Organization
-        </Button>
+        <TypewriterEffectSmooth
+          words={[
+            {
+              text: "Organizations",
+            },
+          ]}
+        />
+         <Button
+        className="border border-black 
+        bg-white text-black text-sm hover:shadow-[4px_4px_0px_0px_rgba(0,0,0)] hover:bg-white 
+        cursor-pointer 
+        transition duration-200"
+        onClick={handleOpenCreateModal}
+        //containerClassName="w-50 "
+        //borderClassName="w-2 h-2"
+        //borderRadius="16px"
+      >
+        <PlusCircleIcon/> {" "}
+        <span className="animated-gradient-text">Create Organization</span>
+      </Button>
       </div>
+     
       <DataTable columns={columns} data={data} />
-      
       {isModalOpen && (
         <OrganizationModal
           isOpen={isModalOpen}
@@ -213,7 +247,8 @@ export function OrganizationDataTable() {
           onSuccess={() => {
             setIsModalOpen(false);
             fetchData();
-          }}        />
+          }}
+        />
       )}
 
       {organizationToDelete && (

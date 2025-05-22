@@ -51,6 +51,7 @@ export const sidebarLinks = [
     title: "Manage",
     url: "/manage",
     icon: Settings2,
+    isActive:true,
     items: [
       {
         title: "Organization",

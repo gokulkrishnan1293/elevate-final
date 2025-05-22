@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { organizations } from "@/db/schema/organization";
 import { employees, employeeOrg } from "@/db/schema/employee"; // Import employee schemas
-import { eq, asc, and, sql } from "drizzle-orm";
+import { eq, asc, and, sql, inArray } from "drizzle-orm"; // Added inArray
 import { alias } from "drizzle-orm/pg-core";
 import { getActorIdFromToken } from "@/lib/okta";
 import {
@@ -287,9 +287,10 @@ export async function getOrganizations() {
   try {
     const creator = alias(employees, "creator");
     const updater = alias(employees, "updater");
-    const owner = alias(employees, "owner");
+    const owner = alias(employees, "owner"); // Alias for employee table to represent owners
 
-    const result = await db
+    // Step 1: Fetch organizations with their creator and updater
+    const orgsData = await db
       .select({
         organizationKey: organizations.organizationKey,
         organizationName: organizations.organizationName,
@@ -301,31 +302,57 @@ export async function getOrganizations() {
         createdByEmail: creator.email,
         updatedByName: sql<string>`${updater.firstName} || ' ' || ${updater.lastName}`,
         updatedByEmail: updater.email,
+      })
+      .from(organizations)
+      .leftJoin(creator, eq(organizations.createdById, creator.employeeKey))
+      .leftJoin(updater, eq(organizations.updatedById, updater.employeeKey))
+      .orderBy(asc(organizations.organizationName));
+
+    if (orgsData.length === 0) {
+      return {
+        success: true,
+        message: "No organizations found.",
+        data: [],
+      };
+    }
+
+    // Step 2: Fetch all owners for these organizations
+    const organizationKeys = orgsData.map(org => org.organizationKey);
+    const ownersData = await db
+      .select({
+        organizationKey: employeeOrg.organizationKey,
         ownerName: sql<string>`${owner.firstName} || ' ' || ${owner.lastName}`,
         ownerEmail: owner.email,
         ownerAvatar: owner.profilePhoto,
         ownerEmployeeKey: owner.employeeKey,
       })
-      .from(organizations)
-      .leftJoin(creator, eq(organizations.createdById, creator.employeeKey))
-      .leftJoin(updater, eq(organizations.updatedById, updater.employeeKey))
-      .leftJoin(employeeOrg, eq(organizations.organizationKey, employeeOrg.organizationKey))
-      .leftJoin(owner, 
-                  and(
-                    eq(employeeOrg.employeeKey, owner.employeeKey),
-                    eq(employeeOrg.orgOwner, true) // Ensure we only join with actual owners
-                  )
-      )
-      .orderBy(asc(organizations.organizationName));
+      .from(employeeOrg)
+      .innerJoin(owner, eq(employeeOrg.employeeKey, owner.employeeKey))
+      .where(and(
+        eq(employeeOrg.orgOwner, true),
+        inArray(employeeOrg.organizationKey, organizationKeys) // Use inArray for correct SQL list
+      ));
 
-    // The `sql` template for concatenation should work.
-    // Drizzle should map these selected fields to a flat object per row.
-    // The OrganizationOutput Zod schema will then validate this structure.
+    // Step 3: Map owners to their respective organizations
+    const organizationsWithOwners = orgsData.map(org => {
+      const orgOwners = ownersData
+        .filter(own => own.organizationKey === org.organizationKey)
+        .map(own => ({
+          ownerName: own.ownerName,
+          ownerEmail: own.ownerEmail,
+          ownerAvatar: own.ownerAvatar,
+          ownerEmployeeKey: own.ownerEmployeeKey,
+        }));
+      return {
+        ...org,
+        owners: orgOwners,
+      };
+    });
 
     return {
       success: true,
       message: "Organizations retrieved successfully.",
-      data: result as OrganizationOutput[], // Cast to the Zod inferred type
+      data: organizationsWithOwners as OrganizationOutput[],
     };
   } catch (error) {
     console.error("Error retrieving organizations:", error);
