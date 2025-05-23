@@ -137,10 +137,15 @@ export function OrganizationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[525px]"
+      onEscapeKeyDown={(e) => e.preventDefault()}
+      onInteractOutside={(e) => {
+          e.preventDefault();
+        }}
+        >
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create Organization" : "Edit Organization"}
+            {mode === "create" ? "Create Organization" : `Edit Organization : ${organizationData?.organizationName || ""}`}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
@@ -153,6 +158,8 @@ export function OrganizationModal({
           onSubmit={handleSubmit}
           defaultValues={mode === "edit" && organizationData ? organizationData : undefined}
           isLoading={isLoading}
+          onCancel={onClose}
+          mode={mode}
         />
 
         {/* {error && <p className="text-sm text-red-500 mt-2">{error}</p>} Replaced by toast */}

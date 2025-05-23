@@ -17,8 +17,8 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip"; // For displaying owners
 
-// TODO: Import ARTModal once it's created
-// import { ARTModal } from "./ARTModal"; 
+import { ARTModal } from "./ARTModal"; 
+import { useAppContext } from "@/context/AppContext";
 
 const getARTTableColumns = (
   handleEditART: (art: ARTOutput) => void,
@@ -92,8 +92,9 @@ const getARTTableColumns = (
 ];
 
 export function ARTDataTable() {
-  const [organizations, setOrganizations] = useState<OrganizationOutput[]>([]);
-  const [selectedOrgKey, setSelectedOrgKey] = useState<string | undefined>(undefined);
+  //const [organizations, setOrganizations] = useState<OrganizationOutput[]>([]);
+  //const [selectedOrgKey, setSelectedOrgKey] = useState<string | undefined>(undefined);
+  const {selectedOrganization}  = useAppContext()
   const [artsData, setArtsData] = useState<ARTOutput[]>([]);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [loadingArts, setLoadingArts] = useState(false);
@@ -106,7 +107,7 @@ export function ARTDataTable() {
   const [isDeleting, setIsDeleting] = useState(false);
   const { authState } = useOktaAuth();
 
-  const fetchOrganizationsList = useCallback(async () => {
+  /*const fetchOrganizationsList = useCallback(async () => {
     setLoadingOrgs(true);
     try {
       const result = await getOrganizations();
@@ -126,7 +127,7 @@ export function ARTDataTable() {
     } finally {
       setLoadingOrgs(false);
     }
-  }, [selectedOrgKey]);
+  }, [selectedOrgKey]);*/
 
   const fetchARTsForOrganization = useCallback(async (orgKey: number) => {
     setLoadingArts(true);
@@ -148,27 +149,27 @@ export function ARTDataTable() {
     }
   }, []);
 
-  useEffect(() => {
+  /*useEffect(() => {
     fetchOrganizationsList();
-  }, [fetchOrganizationsList]);
+  }, [fetchOrganizationsList]);*/
 
   useEffect(() => {
-    if (selectedOrgKey) {
-      fetchARTsForOrganization(parseInt(selectedOrgKey, 10));
+    if (selectedOrganization?.organizationKey) {
+      fetchARTsForOrganization(selectedOrganization.organizationKey);
     } else {
       setArtsData([]); // Clear ARTs if no org is selected
     }
-  }, [selectedOrgKey, fetchARTsForOrganization]);
+  }, [selectedOrganization, fetchARTsForOrganization]);
 
   const handleOpenCreateModal = useCallback(() => {
-    if (!selectedOrgKey) {
+    if (!selectedOrganization?.organizationKey) {
         toast.error("Please select an organization first to create an ART.");
         return;
     }
     setModalMode("create");
     setCurrentART(null);
     setIsModalOpen(true);
-  }, [selectedOrgKey]);
+  }, [selectedOrganization]);
 
   const handleOpenEditModal = useCallback((art: ARTOutput) => {
     setModalMode("edit");
@@ -192,12 +193,22 @@ export function ARTDataTable() {
 
     setIsDeleting(true);
     try {
-      const deleteInput: DeleteARTInput = { artKey: artToDelete.artKey, accessToken };
+      if (!selectedOrganization?.organizationKey) {
+        toast.error("Organization context is missing. Cannot delete ART.");
+        setIsDeleting(false);
+        setArtToDelete(null);
+        return;
+      }
+      const deleteInput: DeleteARTInput = { 
+        artKey: artToDelete.artKey, 
+        organizationKey: selectedOrganization.organizationKey, // Add organizationKey
+        accessToken 
+      };
       const result = await deleteART(deleteInput);
       if (result.success) {
         toast.warning(`ART "${artToDelete.artName}" deleted successfully.`);
-        if (selectedOrgKey) {
-            fetchARTsForOrganization(parseInt(selectedOrgKey, 10));
+        if (selectedOrganization?.organizationKey) {
+            fetchARTsForOrganization(selectedOrganization?.organizationKey);
         }
       } else {
         toast.error(`Failed to delete ART: ${result.message}`);
@@ -208,7 +219,7 @@ export function ARTDataTable() {
       setArtToDelete(null);
       setIsDeleting(false);
     }
-  }, [artToDelete, authState, selectedOrgKey, fetchARTsForOrganization]);
+  }, [artToDelete, authState, selectedOrganization, fetchARTsForOrganization]);
 
   const columns = useMemo(
     () => getARTTableColumns(handleOpenEditModal, handleOpenDeleteConfirm),
@@ -217,7 +228,7 @@ export function ARTDataTable() {
 
   const pageTitleWords = [{ text: "Agile" }, { text: "Release" }, { text: "Trains" }];
   
-  if (loadingOrgs && organizations.length === 0) {
+  if (loadingOrgs && selectedOrganization?.organizationName.length === 0) {
     return <div role="status" className="flex justify-center items-center h-screen">
         <svg aria-hidden="true" className="inline w-10 h-10 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
@@ -227,9 +238,7 @@ export function ARTDataTable() {
     </div>;
   }
   
-  if (error && organizations.length === 0) { // Show error only if orgs couldn't be loaded
-    return <div className="text-red-500 p-4">Error fetching organizations: {error}</div>;
-  }
+
 
   return (
     <div className="container mx-auto py-10">
@@ -238,25 +247,12 @@ export function ARTDataTable() {
             <TypewriterEffectSmooth words={pageTitleWords} />
         </div>
         <div className="flex items-center space-x-4">
-        {organizations.length > 0 && (
-                 <Select value={selectedOrgKey} onValueChange={setSelectedOrgKey}>
-                    <SelectTrigger className="w-[280px] ml-4">
-                        <SelectValue placeholder="Select Organization" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {organizations.map((org) => (
-                        <SelectItem key={org.organizationKey} value={org.organizationKey.toString()}>
-                            {org.organizationName}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            )}
+        
 
         <Button
           className="border border-black bg-white text-black text-sm hover:shadow-[4px_4px_0px_0px_rgba(0,0,0)] hover:bg-white cursor-pointer transition duration-200"
           onClick={handleOpenCreateModal}
-          disabled={!selectedOrgKey || loadingArts}
+          disabled={!selectedOrganization?.organizationKey || loadingArts}
         >
           <PlusCircleIcon className="mr-2 h-4 w-4" />
           <span className="animated-gradient-text">Create ART</span>
@@ -266,26 +262,24 @@ export function ARTDataTable() {
 
       
       {!loadingArts && error && <div className="text-red-500 p-4">Error fetching ARTs: {error}</div>}
-      {!loadingArts && !error && selectedOrgKey && (
+      {!loadingArts && !error && selectedOrganization?.organizationKey && (
         <DataTable columns={columns} data={artsData} />
       )}
-      {!selectedOrgKey && !loadingOrgs && <div className="text-center py-4">Please select an organization to view ARTs.</div>}
+      {!selectedOrganization?.organizationKey && !loadingOrgs && <div className="text-center py-4">Please select an organization to view ARTs.</div>}
 
-
-      {/* TODO: ARTModal integration */}
-      {/* {isModalOpen && selectedOrgKey && (
+      {isModalOpen && selectedOrganization?.organizationKey && (
         <ARTModal
           isOpen={isModalOpen}
           mode={modalMode}
           artData={currentART}
-          organizationKey={parseInt(selectedOrgKey, 10)} // Pass selected org key
+          organizationKey={selectedOrganization?.organizationKey} // Pass selected org key
           onClose={() => setIsModalOpen(false)}
           onSuccess={() => {
             setIsModalOpen(false);
-            if (selectedOrgKey) fetchARTsForOrganization(parseInt(selectedOrgKey, 10));
+            if (selectedOrganization?.organizationKey) fetchARTsForOrganization(selectedOrganization?.organizationKey);
           }}
         />
-      )} */}
+      )}
 
       {artToDelete && (
         <ConfirmDialog

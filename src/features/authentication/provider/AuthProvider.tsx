@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AuthProviderProps } from "@/types/authProvider";
 import { useMemo } from "react";
 import RequireAuth from "../RequireAuth";
+import { AppProvider } from "@/context/AppContext"; // Import AppProvider
 
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
@@ -51,6 +52,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
+  
     <Security
       oktaAuth={oktaAuth}
       restoreOriginalUri={restoreOriginalUri}
@@ -58,8 +60,11 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         router.push("/login");
       }}
     >
-      <RequireAuth>{children}</RequireAuth>
+      <AppProvider> {/* Wrap RequireAuth and its children with AppProvider */}
+        <RequireAuth>{children}</RequireAuth>
+      </AppProvider>
     </Security>
+  
   );
 };
 

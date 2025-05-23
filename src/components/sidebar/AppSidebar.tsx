@@ -12,6 +12,7 @@ import {
 import HeaderLogo from "./HeaderLogo";
 import AppSideBarContent from "./AppSideBarContent";
 import { sidebarLinks } from "../../constants/sidebar";
+import { OrganizationSwitcher } from "../../features/manage/organization/OrganizationSwitcher";
 
 export default function AppSidebar({
   ...props
@@ -20,6 +21,7 @@ export default function AppSidebar({
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <HeaderLogo />
+        <OrganizationSwitcher />
       </SidebarHeader>
 
       <SidebarContent>

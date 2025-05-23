@@ -6,62 +6,76 @@ import { organizations } from "@/db/schema/organization";
 import { arts } from "@/db/schema/ART";
 import { teams } from "@/db/schema/team";
 import { eq, asc, and, desc, ne, sql, inArray } from "drizzle-orm"; // Added sql and inArray
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+// import { createInsertSchema, createSelectSchema } from "drizzle-zod"; // No longer needed here
+// import { z } from "zod"; // No longer needed here for top-level exports
 import { alias } from "drizzle-orm/pg-core";
 import { getActorIdFromToken } from "@/lib/okta"; // Use the centralized helper
-
-// Schema for selecting an Employee (can be used for return types)
-const selectEmployeeSchema = createSelectSchema(employees);
-export type EmployeeOutput = z.infer<typeof selectEmployeeSchema>;
-
-// Schema for inserting a new employee
-const insertEmployeeSchema = createInsertSchema(employees, {
-  employeeKey: (schema) => schema.optional(),
-  createdAt: (schema) => schema.optional(),
-  updatedAt: (schema) => schema.optional(),
-  // Add other fields that might be optional or have defaults during creation
-  isContractor: (schema) => schema.optional(),
-  isUserActive: (schema) => schema.optional(),
-  profilePhoto: (schema) => schema.nullable().optional(),
-  cignaManagerId: (schema) => schema.nullable().optional(),
-});
-export type CreateEmployeeInput = z.infer<typeof insertEmployeeSchema>;
-
-// Schema for updating an existing employee's core details
-const updateEmployeeCoreSchema = insertEmployeeSchema.partial().extend({
-  employeeKey: z.number(), // employeeKey is required for updates
-  // Specific fields allowed for update via this action
-  cignaManagerId: z.string().nullable().optional(),
-  isContractor: z.boolean().optional(),
-  profilePhoto: z.string().nullable().optional(),
-  isUserActive: z.boolean().optional(), // Added for completeness
-  firstName: z.string().optional(), // Allow name updates
-  lastName: z.string().optional(), // Allow name updates
-  email: z.string().email().optional(), // Allow email updates, ensure uniqueness handled
-  lanId: z.string().optional(), // Allow lanId updates, ensure uniqueness handled
-});
-export type UpdateEmployeeCoreInput = z.infer<typeof updateEmployeeCoreSchema>;
+import {
+  EmployeeOutput,
+  CreateEmployeeInput,
+  UpdateEmployeeCoreInputSchema,
+  UpdateEmployeeCoreInput,
+  SetOrganizationOwnersInput,
+  SetArtOwnersInput,
+  SetTeamOwnersInput,
+  AssignEmployeeToTeamInput,
+  RemoveEmployeeFromTeamInput,
+  // Schemas themselves are used internally for validation, so import them too
+  setOrganizationOwnersSchema,
+  setArtOwnersSchema,
+  setTeamOwnersSchema,
+  assignEmployeeToTeamSchema,
+  removeEmployeeFromTeamSchema
+} from "@/lib/schemas/employee";
 
 
 /**
- * Retrieves all employees, ordered by last name, then first name.
+ * Retrieves employees, optionally filtered by organization.
+ * If organizationKey is provided, it fetches employees for that specific organization.
+ * Otherwise, it fetches all employees.
+ * Ordered by last name, then first name.
+ * @param organizationKey - Optional key of the organization to fetch employees for.
  * @returns An object with success status, message, and data (list of employees) or error.
  */
-export async function getEmployees() {
+export async function getEmployees(organizationKey?: number) { // organizationKey is now optional
+
   try {
-    const result = await db
-      .select()
+    let query = db
+      .select({
+        employeeKey: employees.employeeKey,
+        firstName: employees.firstName,
+        lastName: employees.lastName,
+        email: employees.email,
+        lanId: employees.lanId,
+        cignaManagerId: employees.cignaManagerId,
+        isContractor: employees.isContractor,
+        isUserActive: employees.isUserActive,
+        profilePhoto: employees.profilePhoto,
+        createdAt: employees.createdAt,
+        updatedAt: employees.updatedAt,
+      })
       .from(employees)
-      .orderBy(asc(employees.lastName), asc(employees.firstName));
+      .$dynamic(); // Prepare for dynamic conditions
+
+    if (organizationKey !== undefined && organizationKey !== null) {
+      query = query
+        .innerJoin(employeeOrg, eq(employees.employeeKey, employeeOrg.employeeKey))
+        .where(eq(employeeOrg.organizationKey, organizationKey))
+        .orderBy(asc(employees.lastName), asc(employees.firstName));
+    } else {
+      // No organizationKey provided, fetch all employees
+      query = query.orderBy(asc(employees.lastName), asc(employees.firstName));
+    }
+    
+    const result = await query;
 
     return {
       success: true,
-      message: "Employees retrieved successfully.",
+      message: organizationKey ? "Employees for the organization retrieved successfully." : "All employees retrieved successfully.",
       data: result as EmployeeOutput[],
     };
   } catch (error) {
-    console.error("Error retrieving employees:", error);
+    console.error(`Error retrieving employees${organizationKey ? ' for organization ' + organizationKey : ''}:`, error);
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred.";
     return {
@@ -77,31 +91,56 @@ export async function getEmployees() {
  * @returns An object with success status, message, and data (the updated employee) or error.
  */
 export async function updateEmployeeDetails(data: UpdateEmployeeCoreInput) {
-  const { employeeKey, ...updateData } = data;
+  const validatedData = UpdateEmployeeCoreInputSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: "Invalid input: " + validatedData.error.flatten().fieldErrors };
+  }
 
-  if (Object.keys(updateData).length === 0) {
-    return { success: false, message: "No data provided for update." };
+  const { employeeKey, accessToken, organizationKey, ...updatePayloadData } = validatedData.data;
+  
+  if (Object.keys(updatePayloadData).length === 0) {
+    return { success: false, message: "No fields provided for update." };
+  }
+
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
   }
 
   try {
-    // Check if employee exists
-    const existingEmployee = await db
-      .select({ employeeKey: employees.employeeKey })
+    // Check if employee exists and is part of the specified organization
+    const employeeInOrg = await db
+      .select({ eKey: employees.employeeKey })
       .from(employees)
-      .where(eq(employees.employeeKey, employeeKey))
+      .innerJoin(employeeOrg, eq(employees.employeeKey, employeeOrg.employeeKey))
+      .where(and(
+        eq(employees.employeeKey, employeeKey),
+        eq(employeeOrg.organizationKey, organizationKey)
+      ))
       .limit(1);
 
-    if (existingEmployee.length === 0) {
-      return { success: false, message: "Employee not found." };
+    if (employeeInOrg.length === 0) {
+      return { success: false, message: "Employee not found in the specified organization or does not exist." };
     }
 
     // TODO: Add pre-update checks for uniqueness if email or lanId are being changed.
-    // For example, if updateData.email is provided and different from current email:
-    // const conflictingEmployeeByEmail = await db.select().from(employees)
-    //   .where(and(eq(employees.email, updateData.email), ne(employees.employeeKey, employeeKey)));
-    // if (conflictingEmployeeByEmail.length > 0) return { success: false, message: "Email already in use." };
-
-    const payload: Partial<typeof employees.$inferInsert> = { ...updateData };
+    // This check should be global if email/lanId must be globally unique.
+    // Example:
+    if (updatePayloadData.email) {
+      const conflictingEmployeeByEmail = await db.select({key: employees.employeeKey}).from(employees)
+        .where(and(eq(employees.email, updatePayloadData.email), ne(employees.employeeKey, employeeKey)));
+      if (conflictingEmployeeByEmail.length > 0) return { success: false, message: "This email address is already in use by another employee." };
+    }
+    if (updatePayloadData.lanId) {
+      const conflictingEmployeeByLanId = await db.select({key: employees.employeeKey}).from(employees)
+        .where(and(eq(employees.lanId, updatePayloadData.lanId), ne(employees.employeeKey, employeeKey)));
+      if (conflictingEmployeeByLanId.length > 0) return { success: false, message: "This LAN ID is already in use by another employee." };
+    }
+    
+    // Note: createdById is not set on employee table, but on linkage tables.
+    // updatedById on the employee table itself could represent the last global updater.
+    // For now, we are not setting updatedById on the employees table via this action.
+    const payload: Partial<typeof employees.$inferInsert> = { ...updatePayloadData };
     payload.updatedAt = new Date(); // Ensure updatedAt is set
 
     const updatedEmployee = await db
@@ -141,14 +180,6 @@ export async function updateEmployeeDetails(data: UpdateEmployeeCoreInput) {
 }
 
 // --- Ownership Association Schemas and Actions ---
-
-// Schema for setting/updating organization owners (supports multiple owners)
-const setOrganizationOwnersSchema = z.object({
-  organizationKey: z.number(),
-  ownerEmployeeKeys: z.array(z.number()), // Array of employeeKeys for the new set of owners
-  accessToken: z.string(),
-});
-export type SetOrganizationOwnersInput = z.infer<typeof setOrganizationOwnersSchema>;
 
 /**
  * Sets or updates the owners for an organization.
@@ -243,14 +274,6 @@ export async function setOrganizationOwner(data: SetOrganizationOwnersInput) { /
 }
 
 
-// Schema for setting/updating ART owners (supports multiple owners)
-const setArtOwnersSchema = z.object({
-  artKey: z.number(),
-  ownerEmployeeKeys: z.array(z.number()), // Array of employeeKeys for the new set of owners
-  accessToken: z.string(),
-});
-export type SetArtOwnersInput = z.infer<typeof setArtOwnersSchema>; // Renamed type
-
 /**
  * Sets or updates the owners for an ART.
  * This will replace the current set of owners with the provided list.
@@ -339,14 +362,6 @@ export async function setArtOwner(data: SetArtOwnersInput) { // Function name ke
     };
   }
 }
-
-// Schema for setting/updating team owners (supports multiple owners)
-const setTeamOwnersSchema = z.object({
-  teamKey: z.number(),
-  ownerEmployeeKeys: z.array(z.number()), // Array of employeeKeys for the new set of owners
-  accessToken: z.string(),
-});
-export type SetTeamOwnersInput = z.infer<typeof setTeamOwnersSchema>; // Renamed type
 
 /**
  * Sets or updates the owners for a team.
@@ -444,21 +459,17 @@ export async function setTeamOwner(data: SetTeamOwnersInput) { // Function name 
 
 // --- Employee Team Assignment Schemas and Actions ---
 
-const assignEmployeeToTeamSchema = z.object({
-  employeeKey: z.number(),
-  teamKey: z.number(),
-  jobTitle: z.string().min(1, "Job title is required."),
-  isTeamOwner: z.boolean().optional().default(false),
-  accessToken: z.string(), // Changed from actorEmployeeKey
-});
-export type AssignEmployeeToTeamInput = z.infer<typeof assignEmployeeToTeamSchema>;
-
 /**
- * Assigns an employee to a team with a specific job title.
+ * Assigns an employee to a team with a specific job title within a given organization.
  * If the employee is already in the team with that job title, it can update the teamOwner status.
  */
 export async function assignEmployeeToTeam(data: AssignEmployeeToTeamInput) {
-  const { employeeKey, teamKey, jobTitle, isTeamOwner, accessToken } = data;
+  // Validate input data using the imported schema
+  const validatedData = assignEmployeeToTeamSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: "Invalid input: " + validatedData.error.flatten().fieldErrors };
+  }
+  const { employeeKey, teamKey, organizationKey, jobTitle, isTeamOwner, accessToken } = validatedData.data;
   const actorEmployeeKey = await getActorIdFromToken(accessToken);
 
   if (!actorEmployeeKey) {
@@ -466,15 +477,22 @@ export async function assignEmployeeToTeam(data: AssignEmployeeToTeamInput) {
   }
 
   try {
-    // if (!employeeExists.length) return { success: false, message: "Employee not found." };
-    // const teamExists = await db.select().from(teams).where(eq(teams.teamKey, teamKey)).limit(1);
-    // if (!teamExists.length) return { success: false, message: "Team not found." };
+    // Verify the team belongs to the specified organization
+    const teamOrgCheck = await db.select({ key: teams.teamKey })
+      .from(teams)
+      .where(and(eq(teams.teamKey, teamKey), eq(teams.organizationKey, organizationKey)))
+      .limit(1);
+
+    if (teamOrgCheck.length === 0) {
+      return { success: false, message: "Team not found in the specified organization." };
+    }
+    // TODO: Optionally verify employee exists, though FK constraint will catch it.
     
     await db
       .insert(employeeTeam)
       .values({
         employeeKey,
-        teamKey,
+        teamKey, // This teamKey has been validated to be in the organizationKey
         jobTitle,
         teamOwner: isTeamOwner,
         createdById: actorEmployeeKey,
@@ -485,7 +503,7 @@ export async function assignEmployeeToTeam(data: AssignEmployeeToTeamInput) {
       .onConflictDoUpdate({
         target: [employeeTeam.employeeKey, employeeTeam.teamKey, employeeTeam.jobTitle],
         set: {
-          teamOwner: isTeamOwner,
+          teamOwner: isTeamOwner, // Update teamOwner status
           updatedById: actorEmployeeKey,
           updatedAt: new Date(),
         },
@@ -501,9 +519,7 @@ export async function assignEmployeeToTeam(data: AssignEmployeeToTeamInput) {
         if (errorMessage.toLowerCase().includes("employee_team_employee_key_fkey")) {
              return { success: false, message: "Failed to assign: Employee not found." };
         }
-        if (errorMessage.toLowerCase().includes("employee_team_team_key_fkey")) {
-             return { success: false, message: "Failed to assign: Team not found." };
-        }
+        // No need to check for team_key_fkey if we've already validated the team exists in the org.
     }
     return {
       success: false,
@@ -512,31 +528,43 @@ export async function assignEmployeeToTeam(data: AssignEmployeeToTeamInput) {
   }
 }
 
-const removeEmployeeFromTeamSchema = z.object({
-  employeeKey: z.number(),
-  teamKey: z.number(),
-  jobTitle: z.string().min(1, "Job title is required to identify the specific role."),
-  // actorEmployeeKey: z.number(), // Not strictly needed for a delete, but could be logged
-});
-export type RemoveEmployeeFromTeamInput = z.infer<typeof removeEmployeeFromTeamSchema>;
-
 /**
- * Removes an employee's specific role (job title) from a team.
+ * Removes an employee's specific role (job title) from a team within a given organization.
  */
 export async function removeEmployeeFromTeam(data: RemoveEmployeeFromTeamInput) {
-  const { employeeKey, teamKey, jobTitle } = data;
+  // Validate input data using the imported schema
+  const validatedData = removeEmployeeFromTeamSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: "Invalid input: " + validatedData.error.flatten().fieldErrors };
+  }
+  const { employeeKey, teamKey, organizationKey, jobTitle, accessToken } = validatedData.data;
+  
+  const actorEmployeeKey = await getActorIdFromToken(accessToken); // Validate actor
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
+  }
 
   try {
+     // Verify the team belongs to the specified organization
+    const teamOrgCheck = await db.select({ key: teams.teamKey })
+      .from(teams)
+      .where(and(eq(teams.teamKey, teamKey), eq(teams.organizationKey, organizationKey)))
+      .limit(1);
+
+    if (teamOrgCheck.length === 0) {
+      return { success: false, message: "Team not found in the specified organization." };
+    }
+
     const result = await db
       .delete(employeeTeam)
       .where(
         and(
           eq(employeeTeam.employeeKey, employeeKey),
-          eq(employeeTeam.teamKey, teamKey),
+          eq(employeeTeam.teamKey, teamKey), // teamKey is validated to be in organizationKey
           eq(employeeTeam.jobTitle, jobTitle)
         )
       )
-      .returning(); // To check if any row was actually deleted
+      .returning();
 
     if (result.length === 0) {
       return { success: false, message: "Employee not found in team with that job title, or already removed." };

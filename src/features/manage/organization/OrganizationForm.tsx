@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { getEmployees, EmployeeOutput } from "@/actions/employee";
+import { getEmployees } from "@/actions/employee";
+import { EmployeeOutput } from "@/lib/schemas/employee";
 import { OrganizationOutput } from "@/lib/schemas/organization";
 import { FormFieldInput } from "@/components/form/FormFieldInput";
 // import { FormFieldSelect } from "@/components/form/FormFieldSelect"; // No longer used
@@ -23,12 +24,16 @@ interface OrganizationFormProps {
   onSubmit: (data: OrganizationFormData) => Promise<void>;
   defaultValues?: Partial<OrganizationOutput>; // For pre-populating the form in edit mode
   isLoading?: boolean;
+  onCancel: () => void; 
+   mode: "create" | "edit"; 
 }
 
 export function OrganizationForm({
   onSubmit,
   defaultValues,
   isLoading,
+  onCancel,
+  mode
 }: OrganizationFormProps) {
   const [employees, setEmployees] = useState<EmployeeOutput[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
@@ -106,14 +111,21 @@ export function OrganizationForm({
         name="ownerEmployeeKeys"
         label="Organization Owners"
         placeholder="Select owners..."
+        errors={errors}
         options={employeeOptions}
         disabled={isLoading || employeesLoading} // Combine loading states for disabled prop
-        modalPopover={true}
+        //modalPopover={true}
       />
 
-      <Button type="submit" disabled={isLoading} className="w-full">
-        {isLoading ? "Saving..." : "Save Organization"}
-      </Button>
+      
+       <div className="flex justify-end space-x-4 pt-4">
+                  <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+                      Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading || employeesLoading}>
+                      {isLoading ? (mode === "create" ? "Creating..." : "Updating...") : (mode === "create" ? "Create Organization" : "Update Organization")}
+                  </Button>
+        </div>
     </form>
   );
 }

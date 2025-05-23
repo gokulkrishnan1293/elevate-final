@@ -21,7 +21,7 @@ export default function Page() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-                  <BreadcrumbPage>Manage</BreadcrumbPage>
+                  <BreadcrumbPage>Settings</BreadcrumbPage>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>

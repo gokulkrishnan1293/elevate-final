@@ -15,10 +15,11 @@ import {
   DeleteARTInputSchema,
   ARTOutput,
   // Assuming these types are defined in the new schema file
-  CreateARTInput as CreateARTInputType, // Renaming to avoid conflict if needed
+  CreateARTInput as CreateARTInputType,
   UpdateARTInput as UpdateARTInputType,
   DeleteARTInput as DeleteARTInputType,
 } from "@/lib/schemas/art";
+import { setArtOwner, SetArtOwnersInput } from "./employee"; // Import setArtOwner
 
 
 /**
@@ -36,7 +37,7 @@ export async function createART(data: CreateARTInputType) {
     };
   }
 
-  const { accessToken, artName, organizationKey } = validatedData.data;
+  const { accessToken, artName, organizationKey, ownerEmployeeKeys } = validatedData.data; // Destructure ownerEmployeeKeys
   const actorEmployeeKey = await getActorIdFromToken(accessToken);
   if (!actorEmployeeKey) {
     return { success: false, message: "Invalid access token or actor not found." };
@@ -74,10 +75,28 @@ export async function createART(data: CreateARTInputType) {
       .returning();
 
     if (newART.length > 0) {
+      const createdArtData = newART[0];
+      // After successfully creating the ART, set its owners if provided
+      if (ownerEmployeeKeys && ownerEmployeeKeys.length > 0) {
+        const artOwnerData: SetArtOwnersInput = {
+          artKey: createdArtData.artKey,
+          ownerEmployeeKeys: ownerEmployeeKeys,
+          accessToken: accessToken, 
+        };
+        const ownerResult = await setArtOwner(artOwnerData);
+        if (!ownerResult.success) {
+          // ART created, but owners failed.
+          return {
+            success: true, 
+            message: `ART created successfully, but failed to set owners: ${ownerResult.message}`,
+            data: createdArtData as ARTOutput,
+          };
+        }
+      }
       return {
         success: true,
-        message: "ART created successfully.",
-        data: newART[0] as ARTOutput, // Cast to ARTOutput
+        message: "ART and owners created successfully.",
+        data: createdArtData as ARTOutput,
       };
     } else {
       return { success: false, message: "Failed to create ART." };
@@ -109,11 +128,14 @@ export async function updateART(artKey: number, data: UpdateARTInputType) {
       message: "Invalid input: " + validatedData.error.flatten().fieldErrors,
     };
   }
-  
-  const { accessToken, ...updatePayloadData } = validatedData.data;
 
-  if (Object.keys(updatePayloadData).length === 0) {
-    return { success: false, message: "No fields provided for update." };
+  // Note: validatedData.data now includes organizationKey due to schema update
+  const { accessToken, ownerEmployeeKeys, organizationKey: inputOrganizationKey, ...updatePayloadDataWithoutOwners } = validatedData.data;
+
+  const hasDetailsToUpdate = Object.keys(updatePayloadDataWithoutOwners).length > 0;
+
+  if (!hasDetailsToUpdate && ownerEmployeeKeys === undefined) {
+    return { success: false, message: "No fields provided for update and no owner changes specified." };
   }
 
   const actorEmployeeKey = await getActorIdFromToken(accessToken);
@@ -122,73 +144,106 @@ export async function updateART(artKey: number, data: UpdateARTInputType) {
   }
 
   try {
-    const currentART = await db
-      .select({ artName: arts.artName, organizationKey: arts.organizationKey})
-      .from(arts)
-      .where(eq(arts.artKey, artKey))
-      .limit(1);
+    const result = await db.transaction(async (tx) => {
+      let updatedArtDataFromDb: ARTOutput | null = null;
 
-    if (currentART.length === 0) {
-      return { success: false, message: "ART not found." };
-    }
+      // First, verify the ART exists and belongs to the inputOrganizationKey
+      const artToUpdate = await tx
+        .select({ currentOrgKey: arts.organizationKey, artName: arts.artName })
+        .from(arts)
+        .where(eq(arts.artKey, artKey))
+        .limit(1);
 
-    const nameToCheck = updatePayloadData.artName ?? currentART[0].artName;
-    const orgKeyToCheck = updatePayloadData.organizationKey ?? currentART[0].organizationKey;
+      if (artToUpdate.length === 0) {
+        throw new Error("ART not found.");
+      }
+      if (artToUpdate[0].currentOrgKey !== inputOrganizationKey) {
+        throw new Error("ART does not belong to the specified organization. Update denied.");
+      }
 
-    if (updatePayloadData.artName !== undefined || updatePayloadData.organizationKey !== undefined) {
-        const conflictingART = await db
+      if (hasDetailsToUpdate) {
+        const nameToCheck = updatePayloadDataWithoutOwners.artName ?? artToUpdate[0].artName;
+        // ART's organizationKey cannot be changed via this update, so orgKeyToCheck is always inputOrganizationKey
+        const orgKeyToCheck = inputOrganizationKey; 
+
+        if (updatePayloadDataWithoutOwners.artName !== undefined) { // Only check if name is actually changing
+            const potentialConflict = await tx
             .select({ artKey: arts.artKey })
             .from(arts)
             .where(
-            and(
+                and(
                 eq(arts.artName, nameToCheck),
-                eq(arts.organizationKey, orgKeyToCheck),
-                eq(arts.artKey, artKey) // This should be ne(arts.artKey, artKey)
-            )
+                eq(arts.organizationKey, orgKeyToCheck) //Scoped to the same organization
+                )
             )
             .limit(1);
-        // Corrected check for conflict:
-         const potentialConflict = await db
-          .select({ artKey: arts.artKey })
-          .from(arts)
-          .where(
-            and(
-              eq(arts.artName, nameToCheck),
-              eq(arts.organizationKey, orgKeyToCheck)
-            )
-          )
-          .limit(1);
-        if (potentialConflict.length > 0 && potentialConflict[0].artKey !== artKey) {
-            return { success: false, message: "An ART with this name already exists for the given organization."};
+            if (potentialConflict.length > 0 && potentialConflict[0].artKey !== artKey) {
+            throw new Error("An ART with this name already exists for the given organization.");
+            }
         }
-    }
-    
-    const updatePayload: Partial<typeof arts.$inferInsert> = {
-      ...updatePayloadData,
-      updatedById: actorEmployeeKey,
-      updatedAt: new Date(),
+        
+        const updatePayload: Partial<typeof arts.$inferInsert> = {
+          ...updatePayloadDataWithoutOwners, // Contains only fields like artName
+          updatedById: actorEmployeeKey,
+          updatedAt: new Date(),
+        };
+        // Explicitly do not allow changing organizationKey via this path
+        delete (updatePayload as any).organizationKey;
+
+
+        const updatedARTResult = await tx
+          .update(arts)
+          .set(updatePayload)
+          .where(and(eq(arts.artKey, artKey), eq(arts.organizationKey, inputOrganizationKey))) // Ensure update is scoped
+          .returning();
+
+        if (updatedARTResult.length === 0) {
+          // This should ideally not be reached if the initial check passed and artKey/orgKey are correct
+          throw new Error("Failed to update ART details. ART may not exist or not belong to the organization.");
+        }
+        updatedArtDataFromDb = updatedARTResult[0] as ARTOutput;
+      }
+
+      if (ownerEmployeeKeys !== undefined) {
+        const artOwnerData: SetArtOwnersInput = {
+          artKey: artKey,
+          ownerEmployeeKeys: ownerEmployeeKeys, // Can be empty array
+          accessToken: accessToken,
+        };
+        // Assuming setArtOwner handles its own transaction or is safe to call sequentially.
+        // For true atomicity of ART details + owner updates, setArtOwner would need to accept 'tx'.
+        const ownerResult = await setArtOwner(artOwnerData);
+        if (!ownerResult.success) {
+          throw new Error(`Failed to update ART owners: ${ownerResult.message}`);
+        }
+      }
+      
+      // If only owners were updated, or if no details were updated but we need to return the ART data
+      if (!updatedArtDataFromDb) {
+        const currentArtForReturn = await tx.select().from(arts).where(eq(arts.artKey, artKey)).limit(1);
+        if(currentArtForReturn.length === 0) {
+            // This case should be rare if initial check passed, but good for robustness
+            throw new Error("ART not found after owner update attempt.");
+        }
+        updatedArtDataFromDb = currentArtForReturn[0] as ARTOutput;
+      }
+      return updatedArtDataFromDb; // Return the ART data
+    });
+
+    return {
+      success: true,
+      message: "ART updated successfully.",
+      data: result, // result is updatedArtDataFromDb from the transaction
     };
 
-    const updatedART = await db
-      .update(arts)
-      .set(updatePayload)
-      .where(eq(arts.artKey, artKey))
-      .returning();
-
-    if (updatedART.length > 0) {
-      return {
-        success: true,
-        message: "ART updated successfully.",
-        data: updatedART[0] as ARTOutput, // Cast to ARTOutput
-      };
-    } else {
-      return { success: false, message: "Failed to update ART or ART not found." };
-    }
   } catch (error) {
     console.error("Error updating ART:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
      if (errorMessage.toLowerCase().includes("unique constraint") && errorMessage.toLowerCase().includes("art_name_organization_id_unique")) {
         return { success: false, message: "An ART with this name already exists for the given organization."};
+    }
+    if (errorMessage.startsWith("Failed to update ART owners:")) {
+        return { success: false, message: errorMessage };
     }
     return {
       success: false,
@@ -199,7 +254,7 @@ export async function updateART(artKey: number, data: UpdateARTInputType) {
 
 /**
  * Deletes an ART.
- * @param data - Data containing artKey and accessToken, conforming to DeleteARTInputType.
+ * @param data - Data containing artKey, organizationKey, and accessToken, conforming to DeleteARTInputType.
  * @returns An object with success status and message or error.
  */
 export async function deleteART(data: DeleteARTInputType) {
@@ -210,34 +265,34 @@ export async function deleteART(data: DeleteARTInputType) {
       message: "Invalid input: " + validatedData.error.flatten().fieldErrors,
     };
   }
-  const { artKey, accessToken } = validatedData.data;
-  const actorEmployeeKey = await getActorIdFromToken(accessToken); // Validate actor
+  const { artKey, organizationKey, accessToken } = validatedData.data; // Destructure organizationKey
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
   if (!actorEmployeeKey) {
     return { success: false, message: "Invalid access token or actor not found." };
   }
 
   try {
+    // Verify the ART exists and belongs to the specified organization before deleting
     const existingART = await db
       .select({ artKey: arts.artKey })
       .from(arts)
-      .where(eq(arts.artKey, artKey))
+      .where(and(eq(arts.artKey, artKey), eq(arts.organizationKey, organizationKey)))
       .limit(1);
 
     if (existingART.length === 0) {
-      return { success: false, message: "ART not found." };
+      return { success: false, message: "ART not found in the specified organization or does not exist." };
     }
 
-    // Add transaction if there are related entities to delete from employeeArt first
     await db.transaction(async (tx) => {
-        // Delete links from employeeArt first if necessary (cascade might handle this)
         await tx.delete(employeeArt).where(eq(employeeArt.artKey, artKey));
         
         const deletedARTResult = await tx
             .delete(arts)
-            .where(eq(arts.artKey, artKey))
+            .where(and(eq(arts.artKey, artKey), eq(arts.organizationKey, organizationKey))) // Scope delete
             .returning({ deletedKey: arts.artKey });
 
         if (deletedARTResult.length === 0) {
+            // This should not happen if existingART check passed
             throw new Error("Failed to delete ART after clearing dependencies.");
         }
     });

@@ -25,7 +25,7 @@ export const teams = elevateSchema.table(
       .references(() => arts.artKey, { onDelete: "cascade" }),
     organizationKey: integer("organization_key")
       .notNull()
-      .references(() => arts.artKey, { onDelete: "cascade" }),
+      .references(() => organizations.organizationKey, { onDelete: "cascade" }), // Corrected reference
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .notNull()

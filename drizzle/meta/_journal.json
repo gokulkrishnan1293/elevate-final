@@ -43,6 +43,13 @@
       "when": 1747655834980,
       "tag": "0005_condemned_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1747980587167,
+      "tag": "0006_redundant_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

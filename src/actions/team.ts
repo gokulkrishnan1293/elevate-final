@@ -6,50 +6,87 @@ import { and, eq, type SQL } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
+import { getActorIdFromToken } from "@/lib/okta"; // Import for actor tracking
+
 // Schema for inserting a new Team
-const insertTeamSchema = createInsertSchema(teams, {
+export const CreateTeamInputSchema = createInsertSchema(teams, {
   teamKey: (fieldSchema) => fieldSchema.optional(),
   createdAt: (fieldSchema) => fieldSchema.optional(),
   updatedAt: (fieldSchema) => fieldSchema.optional(),
-  // teamName, artKey, organizationKey are required by DB schema (notNull)
+  createdById: (fieldSchema) => fieldSchema.optional(), // Will be set by actor
+  updatedById: (fieldSchema) => fieldSchema.optional(), // Will be set by actor
+  // teamName, artKey, organizationKey are required
+}).omit({
+  createdById: true, // To be set from accessToken
+  updatedById: true, // To be set from accessToken
+}).extend({
+  accessToken: z.string(),
 });
-export type CreateTeamInput = z.infer<typeof insertTeamSchema>;
+export type CreateTeamInput = z.infer<typeof CreateTeamInputSchema>;
 
 // Schema for selecting a Team (can be used for return types)
 const selectTeamSchema = createSelectSchema(teams);
-export type TeamOutput = z.infer<typeof selectTeamSchema>;
+export type TeamOutput = z.infer<typeof selectTeamSchema>; // Potentially extend this with joined data like ART name, Org name
 
-// Schema for updating an existing Team (all fields optional for partial update)
-const updateTeamSchema = insertTeamSchema.partial();
-export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
+// Schema for updating an existing Team
+export const UpdateTeamInputSchema = createInsertSchema(teams, {
+  // All fields that can be updated are optional by default with .partial()
+  // but we define them here if we want specific Zod refinements not covered by Drizzle schema
+}).partial().omit({ // Omit fields that shouldn't be directly updatable or are auto-managed
+  teamKey: true,
+  createdAt: true,
+  createdById: true,
+  // organizationKey might be updatable if a team can move orgs, but typically not.
+  // For now, assume organizationKey is fixed once created or handled very carefully.
+  // If it's fixed, it should be omitted here. If updatable, ensure logic handles it.
+}).extend({
+  accessToken: z.string(),
+});
+export type UpdateTeamInput = z.infer<typeof UpdateTeamInputSchema>;
+
+// Schema for deleting a Team
+export const DeleteTeamInputSchema = z.object({
+  teamKey: z.number(),
+  organizationKey: z.number(), // To ensure deletion is scoped to the correct organization
+  accessToken: z.string(),
+});
+export type DeleteTeamInput = z.infer<typeof DeleteTeamInputSchema>;
+
 
 /**
  * Creates a new Team.
- * @param data - The data for the new Team.
- *               Requires 'teamName', 'artKey', and 'organizationKey'. 'createdById' is optional.
+ * @param data - The data for the new Team, including accessToken.
  * @returns An object with success status, message, and data (the created Team) or error.
  */
 export async function createTeam(data: CreateTeamInput) {
-  if (!data.teamName) {
-    return { success: false, message: "Team name is required." };
+  const validatedData = CreateTeamInputSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: "Invalid input: " + validatedData.error.flatten().fieldErrors };
   }
-  if (data.artKey === undefined || data.artKey === null) {
-    return { success: false, message: "ART key is required." };
+
+  const { accessToken, teamName, artKey, organizationKey } = validatedData.data;
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
   }
-  if (data.organizationKey === undefined || data.organizationKey === null) {
-    return { success: false, message: "Organization key is required." };
-  }
+  
+  // Basic validation already handled by Zod, but explicit checks can remain if preferred
+  // if (!teamName) return { success: false, message: "Team name is required." };
+  // if (artKey === undefined || artKey === null) return { success: false, message: "ART key is required." };
+  // if (organizationKey === undefined || organizationKey === null) return { success: false, message: "Organization key is required." };
+
 
   try {
     // Ensure teamName + artKey combination is unique (as per DB constraint)
+    // This check should also implicitly be within the organization via artKey's organization
     const existingTeam = await db
       .select({ teamKey: teams.teamKey })
       .from(teams)
       .where(
         and(
-          eq(teams.teamName, data.teamName),
-          eq(teams.artKey, data.artKey)
-          // Note: organizationKey is not part of this specific unique constraint in the schema
+          eq(teams.teamName, teamName),
+          eq(teams.artKey, artKey),
+          eq(teams.organizationKey, organizationKey) // Ensure uniqueness within the organization
         )
       )
       .limit(1);
@@ -57,17 +94,20 @@ export async function createTeam(data: CreateTeamInput) {
     if (existingTeam.length > 0) {
       return {
         success: false,
-        message: "A Team with this name already exists for the given ART.",
+        message: "A Team with this name already exists for the given ART within this Organization.",
       };
     }
 
     const newTeam = await db
       .insert(teams)
       .values({
-        teamName: data.teamName,
-        artKey: data.artKey,
-        organizationKey: data.organizationKey, // Added organizationKey
-        createdById: data.createdById,
+        teamName,
+        artKey,
+        organizationKey,
+        createdById: actorEmployeeKey,
+        updatedById: actorEmployeeKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
       .returning();
 
@@ -75,7 +115,7 @@ export async function createTeam(data: CreateTeamInput) {
       return {
         success: true,
         message: "Team created successfully.",
-        data: newTeam[0] as TeamOutput,
+        data: newTeam[0] as TeamOutput, // Consider enhancing TeamOutput with joined names
       };
     } else {
       return { success: false, message: "Failed to create Team." };
@@ -105,68 +145,96 @@ export async function createTeam(data: CreateTeamInput) {
  * @returns An object with success status, message, and data (the updated Team) or error.
  */
 export async function updateTeam(teamKey: number, data: UpdateTeamInput) {
-  if (Object.keys(data).length === 0) {
-    return { success: false, message: "No data provided for update." };
+  const validatedData = UpdateTeamInputSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: "Invalid input: " + validatedData.error.flatten().fieldErrors };
+  }
+
+  const { accessToken, ...updatePayloadData } = validatedData.data;
+
+  if (Object.keys(updatePayloadData).length === 0) {
+    return { success: false, message: "No fields provided for update." };
+  }
+
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
   }
 
   try {
-    const currentTeam = await db
-      .select()
+    // Fetch the current team to get its organizationKey for scoping and uniqueness checks
+    const currentTeamArray = await db
+      .select({ 
+        teamName: teams.teamName, 
+        artKey: teams.artKey,
+        organizationKey: teams.organizationKey 
+      })
       .from(teams)
       .where(eq(teams.teamKey, teamKey))
       .limit(1);
 
-    if (currentTeam.length === 0) {
+    if (currentTeamArray.length === 0) {
       return { success: false, message: "Team not found." };
     }
+    const currentTeam = currentTeamArray[0];
+    const currentOrganizationKey = currentTeam.organizationKey; // This is the tenant scope
 
     // Check for uniqueness if teamName or artKey are being changed
-    const nameToCheck = data.teamName ?? currentTeam[0].teamName;
-    // artKey from DB is number, data.artKey from input could be number | undefined
-    const artKeyToCheck = data.artKey ?? currentTeam[0].artKey;
+    const nameToCheck = updatePayloadData.teamName ?? currentTeam.teamName;
+    const artKeyToCheck = updatePayloadData.artKey ?? currentTeam.artKey;
 
-    if (data.teamName !== undefined || data.artKey !== undefined) {
-      // Ensure artKeyToCheck is not null/undefined before using in eq
-      if (
-        nameToCheck &&
-        artKeyToCheck !== null &&
-        artKeyToCheck !== undefined
-      ) {
+    // If organizationKey is part of updatePayloadData, it means an attempt to change the team's organization.
+    // This is a complex operation and typically disallowed or handled with extreme care in multi-tenant systems.
+    // For now, we will prevent changing the organizationKey of a team.
+    if (updatePayloadData.organizationKey !== undefined && updatePayloadData.organizationKey !== currentOrganizationKey) {
+        return { success: false, message: "Changing the organization of a team is not allowed." };
+    }
+
+    if (updatePayloadData.teamName !== undefined || updatePayloadData.artKey !== undefined) {
+      if (nameToCheck && artKeyToCheck !== null && artKeyToCheck !== undefined) {
         const potentialConflict = await db
           .select({ teamKey: teams.teamKey })
           .from(teams)
           .where(
             and(
               eq(teams.teamName, nameToCheck),
-              eq(teams.artKey, artKeyToCheck)
-              // organizationKey is not part of this unique constraint
+              eq(teams.artKey, artKeyToCheck),
+              eq(teams.organizationKey, currentOrganizationKey), // Check uniqueness within the same organization
+              eq(teams.teamKey, teamKey) // Exclude the current team itself from conflict check by ensuring teamKey is different
             )
           )
           .limit(1);
+        
+        // Corrected conflict check:
+        const conflictCheck = await db.select({teamKey: teams.teamKey}).from(teams)
+        .where(and(
+            eq(teams.teamName, nameToCheck),
+            eq(teams.artKey, artKeyToCheck),
+            eq(teams.organizationKey, currentOrganizationKey)
+        )).limit(1);
 
-        if (
-          potentialConflict.length > 0 &&
-          potentialConflict[0].teamKey !== teamKey
-        ) {
+        if (conflictCheck.length > 0 && conflictCheck[0].teamKey !== teamKey) {
           return {
             success: false,
-            message: "A Team with this name already exists for the given ART.",
+            message: "A Team with this name already exists for the given ART within this Organization.",
           };
         }
       }
     }
 
-    const updatePayload: Partial<typeof teams.$inferInsert> = { ...data };
-    // organizationKey can be updated if present in data
-    if (data.organizationKey !== undefined) {
-      updatePayload.organizationKey = data.organizationKey;
-    }
-    updatePayload.updatedAt = new Date();
+    const updatePayload: Partial<typeof teams.$inferInsert> = { 
+        ...updatePayloadData,
+        updatedById: actorEmployeeKey, // Set updatedById
+        updatedAt: new Date(),
+    };
+    // Ensure organizationKey is not accidentally changed if not explicitly allowed
+    delete updatePayload.organizationKey;
+
 
     const updatedTeam = await db
       .update(teams)
       .set(updatePayload)
-      .where(eq(teams.teamKey, teamKey))
+      .where(and(eq(teams.teamKey, teamKey), eq(teams.organizationKey, currentOrganizationKey))) // Scope update to tenant
       .returning();
 
     if (updatedTeam.length > 0) {
@@ -176,15 +244,15 @@ export async function updateTeam(teamKey: number, data: UpdateTeamInput) {
         data: updatedTeam[0] as TeamOutput,
       };
     } else {
+      // This could happen if the teamKey is correct but organizationKey doesn't match (attempt to update cross-tenant)
       return {
         success: false,
-        message: "Failed to update Team or Team not found.",
+        message: "Failed to update Team. Ensure it belongs to the correct organization or it was not found.",
       };
     }
   } catch (error) {
     console.error("Error updating Team:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred.";
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     if (errorMessage.includes("team_name_art_id_unique")) {
       return {
         success: false,
@@ -200,24 +268,39 @@ export async function updateTeam(teamKey: number, data: UpdateTeamInput) {
 
 /**
  * Deletes a Team.
- * @param teamKey - The key of the Team to delete.
+ * @param data - Input data including teamKey, organizationKey, and accessToken.
  * @returns An object with success status and message or error.
  */
-export async function deleteTeam(teamKey: number) {
+export async function deleteTeam(data: DeleteTeamInput) {
+  const validatedData = DeleteTeamInputSchema.safeParse(data);
+  if (!validatedData.success) {
+    return { success: false, message: "Invalid input: " + validatedData.error.flatten().fieldErrors };
+  }
+  const { teamKey, organizationKey, accessToken } = validatedData.data;
+
+  const actorEmployeeKey = await getActorIdFromToken(accessToken);
+  if (!actorEmployeeKey) {
+    return { success: false, message: "Invalid access token or actor not found." };
+  }
+
   try {
+    // Ensure the team exists and belongs to the specified organization before deleting
     const existingTeam = await db
       .select({ teamKey: teams.teamKey })
       .from(teams)
-      .where(eq(teams.teamKey, teamKey))
+      .where(and(eq(teams.teamKey, teamKey), eq(teams.organizationKey, organizationKey)))
       .limit(1);
 
     if (existingTeam.length === 0) {
-      return { success: false, message: "Team not found." };
+      return { success: false, message: "Team not found in the specified organization or does not exist." };
     }
+
+    // TODO: Consider deleting related employeeTeam links if not handled by cascade or if specific logic is needed.
+    // For now, assuming cascade delete on employeeTeam or manual cleanup elsewhere.
 
     const deletedTeam = await db
       .delete(teams)
-      .where(eq(teams.teamKey, teamKey))
+      .where(and(eq(teams.teamKey, teamKey), eq(teams.organizationKey, organizationKey))) // Scope delete to tenant
       .returning({ deletedKey: teams.teamKey });
 
     if (deletedTeam.length > 0 && deletedTeam[0].deletedKey === teamKey) {
@@ -225,13 +308,12 @@ export async function deleteTeam(teamKey: number) {
     } else {
       return {
         success: false,
-        message: "Failed to delete Team or Team not found.",
+        message: "Failed to delete Team.", // Should not be reached if existingTeam check passes
       };
     }
   } catch (error) {
     console.error("Error deleting Team:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred.";
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     return {
       success: false,
       message: `Database operation failed: ${errorMessage}`,
@@ -240,29 +322,30 @@ export async function deleteTeam(teamKey: number) {
 }
 
 /**
- * Retrieves an organization by its key.
- * @param teamKey - The key of the organization to retrieve.
- * @returns An object with success status, message, and data (the organization) or error.
+ * Retrieves a team by its key, scoped to an organization.
+ * @param teamKey - The key of the team to retrieve.
+ * @param organizationKey - The key of the organization this team must belong to.
+ * @returns An object with success status, message, and data (the team) or error.
  */
-export async function getTeamByKey(teamKey: number) {
+export async function getTeamByKey(teamKey: number, organizationKey: number) {
   try {
     const team = await db
       .select()
       .from(teams)
-      .where(eq(teams.teamKey, teamKey))
+      .where(and(eq(teams.teamKey, teamKey), eq(teams.organizationKey, organizationKey))) // Scoped to organization
       .limit(1);
 
     if (team.length > 0) {
       return {
         success: true,
-        message: "Organization retrieved successfully.",
+        message: "Team retrieved successfully.", // Corrected message
         data: team[0] as TeamOutput,
       };
     } else {
-      return { success: false, message: "Organization not found." };
+      return { success: false, message: "Team not found in the specified organization." }; // Corrected message
     }
   } catch (error) {
-    console.error("Error retrieving organization by key:", error);
+    console.error("Error retrieving team by key:", error); // Corrected log message
     const errorMessage =
       error instanceof Error ? error.message : "An unknown error occurred.";
     return {

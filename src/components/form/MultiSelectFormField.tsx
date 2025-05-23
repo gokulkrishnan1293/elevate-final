@@ -253,14 +253,6 @@ const MultiSelectInput = React.forwardRef<
             className="min-w-0 w-full max-w-full p-0"
             align="start"
             onEscapeKeyDown={() => !disabled && setIsPopoverOpen(false)}
-            onOpenAutoFocus={(e) => {
-              // When the popover opens, explicitly focus the CommandInput.
-              // Prevent default Radix auto-focus to take manual control.
-              if (commandInputRef.current) {
-                e.preventDefault();
-                commandInputRef.current.focus();
-              }
-            }}
             >
             <Command>
               <CommandInput
@@ -396,6 +388,8 @@ export function MultiSelectFormField<TFieldValues extends FieldValues = FieldVal
   ...rest // other native button props from MultiSelectInputProps for the <Button />
 }: MultiSelectFormFieldProps<TFieldValues>) {
   const error = errors?.[name]?.message as string | undefined;
+
+  console.log(errors)
 
   return (
     <div className={containerClassName}>

@@ -11,6 +11,7 @@ export const CreateARTInputSchema = createInsertSchema(arts, {
   organizationKey: z.number({ required_error: "Organization is required." }),
   // createdById will be set by the backend using accessToken
   // artKey, createdAt, updatedAt are auto-generated or set by backend
+  // ownerEmployeeKeys will be added in .extend()
 }).omit({
   artKey: true,
   createdAt: true,
@@ -20,6 +21,7 @@ export const CreateARTInputSchema = createInsertSchema(arts, {
 })
 .extend({
     accessToken: z.string(), // For identifying the actor
+    ownerEmployeeKeys: z.array(z.number()).optional(), // For assigning owners
 });
 export type CreateARTInput = z.infer<typeof CreateARTInputSchema>;
 
@@ -28,16 +30,19 @@ export type CreateARTInput = z.infer<typeof CreateARTInputSchema>;
 export const UpdateARTInputSchema = createInsertSchema(arts, {
     artName: z.string().min(1, "ART name cannot be empty.").optional(),
     organizationKey: z.number().optional(),
+    // ownerEmployeeKeys will be added in .extend()
 })
 .partial() // Makes all fields optional initially
 .omit({ // Omit fields that shouldn't be directly updatable or are auto-managed
     artKey: true, // artKey is used to identify the record, not update
     createdAt: true,
-    createdById: true, 
+    createdById: true,
     // updatedAt and updatedById are handled by the backend
 })
 .extend({
     accessToken: z.string(), // For identifying the actor
+    organizationKey: z.number(), // For scoping the update
+    ownerEmployeeKeys: z.array(z.number()).optional(), // For updating owners
 });
 export type UpdateARTInput = z.infer<typeof UpdateARTInputSchema>;
 
@@ -45,6 +50,7 @@ export type UpdateARTInput = z.infer<typeof UpdateARTInputSchema>;
 // Schema for deleting an ART
 export const DeleteARTInputSchema = z.object({
   artKey: z.number(),
+  organizationKey: z.number(), // For scoping the delete
   accessToken: z.string(),
 });
 export type DeleteARTInput = z.infer<typeof DeleteARTInputSchema>;

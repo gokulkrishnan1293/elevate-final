@@ -4,16 +4,20 @@ import {
   AwardIcon,
   BookOpen,
   Bot,
+  CalendarDays,
   Command,
   DiscAlbum,
+  FolderKanban,
   Frame,
   GalleryVerticalEnd,
   LayoutDashboard,
   Map,
   PieChart,
+  Settings,
   Settings2,
   SquareTerminal,
   TowerControl,
+  UsersRound,
 } from "lucide-react";
 
 export const sidebarLinks = [
@@ -26,7 +30,7 @@ export const sidebarLinks = [
   {
     title: "Feedback",
     url: "/feedback",
-    icon: DiscAlbum,
+    icon: UsersRound,
     isActive: true,
     items: [
       {
@@ -38,7 +42,7 @@ export const sidebarLinks = [
   {
     title: "Events",
     url: "/events",
-    icon: TowerControl,
+    icon: CalendarDays,
     isActive: true,
     items: [
       {
@@ -50,13 +54,9 @@ export const sidebarLinks = [
   {
     title: "Manage",
     url: "/manage",
-    icon: Settings2,
-    isActive:true,
+    icon: FolderKanban,
+    isActive:false,
     items: [
-      {
-        title: "Organization",
-        url: "/manage/organization",
-      },
       {
         title: "ART",
         url: "/manage/art",
@@ -64,6 +64,30 @@ export const sidebarLinks = [
       {
         title: "Team",
         url: "/manage/team",
+      },
+      {
+        title: "Members",
+        url: "/manage/members",
+      },
+    ],
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+    isActive:false,
+    items: [
+      {
+        title: "Organization",
+        url: "/settings/organization",
+      },
+      {
+        title: "Roles",
+        url: "/settings/roles",
+      },
+      {
+        title: "Premissions",
+        url: "/settings/premissions",
       },
     ],
   },
