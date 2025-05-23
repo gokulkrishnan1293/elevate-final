@@ -40,13 +40,13 @@ const ProfileCard = () => {
         </CardItem>
         <CardItem translateZ="100" className="w-full mt-4 items-center">
           <div className="flex justify-between">
-            <div>
+           {/* <div>
               <ColourfulText text="10" className="text-6xl" />
             </div>
 
             <div>
               <ColourfulText text="20" className="text-6xl" />
-            </div>
+            </div>*/}
           </div>
         </CardItem>
         <div className="flex justify-between items-center mt-65">
