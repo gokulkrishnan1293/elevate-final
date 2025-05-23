@@ -19,7 +19,8 @@ import {
   UpdateARTInput as UpdateARTInputType,
   DeleteARTInput as DeleteARTInputType,
 } from "@/lib/schemas/art";
-import { setArtOwner, SetArtOwnersInput } from "./employee"; // Import setArtOwner
+import { setArtOwner } from "./employee"; // Import setArtOwner
+import { SetArtOwnersInput } from "@/lib/schemas/employee"; // Import SetArtOwnersInput
 
 
 /**
