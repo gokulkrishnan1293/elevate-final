@@ -5,8 +5,8 @@ import { arts } from "@/db/schema/ART";
 import { organizations } from "@/db/schema/organization";
 import { employees, employeeArt } from "@/db/schema/employee";
 import { and, eq, asc, sql, inArray } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+//import { createInsertSchema } from "drizzle-zod";
+//import { z } from "zod";
 import { alias } from "drizzle-orm/pg-core";
 import { getActorIdFromToken } from "@/lib/okta";
 import {
@@ -189,7 +189,7 @@ export async function updateART(artKey: number, data: UpdateARTInputType) {
           updatedAt: new Date(),
         };
         // Explicitly do not allow changing organizationKey via this path
-        delete (updatePayload as any).organizationKey;
+        delete (updatePayload as Partial<typeof arts.$inferInsert> ).organizationKey;
 
 
         const updatedARTResult = await tx
